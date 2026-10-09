@@ -26,7 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # GUI dependencies (for tkinter/customtkinter)
     x11vnc xvfb \
     # Required shared libraries
-    libgl1-mesa-glx libglib2.0-0 \
+    libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Extract rockyou.txt if compressed
