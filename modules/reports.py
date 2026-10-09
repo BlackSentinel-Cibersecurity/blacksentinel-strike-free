@@ -1,0 +1,1509 @@
+#!/usr/bin/env python3
+"""
+═══════════════════════════════════════════════════════════════
+        REPORT MODULE - BlackSentinel Strike v4.0
+═══════════════════════════════════════════════════════════════
+"""
+
+import os
+import json
+import csv
+import hashlib
+import smtplib
+import subprocess
+from datetime import datetime, timedelta
+from pathlib import Path
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
+from .vault import encrypt_data, VAULT_DIR
+
+
+class ReportModule:
+    """Report generation module"""
+
+    def __init__(self, callback=None):
+        self.callback = callback
+        self.report_data = {}
+        self.scan_history = []
+        self.scheduled_scans = []
+        self.vuln_db = []
+
+    def log(self, message, level="info"):
+        """Log message"""
+        if self.callback:
+            self.callback(message, level)
+
+    # ═══════════════════════════════════════════════════════════
+    #  EXISTING METHODS (enhanced)
+    # ═══════════════════════════════════════════════════════════
+
+    def create_report(self, data, title="Pentesting Report", format="markdown"):
+        """Create report"""
+        self.log(f"Generating report: {title}", "info")
+
+        try:
+            if format == "markdown":
+                content = self._create_markdown(data, title)
+            elif format == "json":
+                content = self._create_json(data, title)
+            elif format == "html":
+                content = self._create_html(data, title)
+            else:
+                content = self._create_markdown(data, title)
+
+            self.log("Report generated", "success")
+            return {"success": True, "content": content, "format": format}
+        except Exception as e:
+            self.log(f"Error generating report: {str(e)}", "error")
+            return {"success": False, "error": str(e)}
+
+    def _create_markdown(self, data, title):
+        """Create report in Markdown"""
+        report = f"""# {title}
+
+**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**Author:** BlackSentinel Strike
+**Version:** 4.0
+
+---
+
+## Executive Summary
+
+This report documents the findings of the pentesting performed on the defined scope.
+
+## Scope
+
+- **Targets:** {data.get('targets', 'Not specified')}
+- **Execution dates:** {datetime.now().strftime('%Y-%m-%d')}
+- **Tools used:** Nmap, Metasploit, Hydra, Burp Suite
+
+---
+
+## Findings
+
+### 1. Reconnaissance
+
+"""
+
+        if "recon" in data:
+            recon = data["recon"]
+            if "dns" in recon:
+                report += f"""#### DNS
+- **Domain:** {recon['dns'].get('domain', 'N/A')}
+- **Subdomains found:** {len(recon['dns'].get('subdomains', []))}
+
+"""
+            if "whois" in recon:
+                report += f"""#### WHOIS
+- **Registrar:** {recon['whois'].get('parsed', {}).get('registrar', 'N/A')}
+- **Creation date:** {recon['whois'].get('parsed', {}).get('creation_date', 'N/A')}
+
+"""
+
+        report += """### 2. Network Scan
+
+"""
+
+        if "network" in data:
+            report += f"""- **Hosts found:** {data['network'].get('hosts_found', 0)}
+- **Open ports:** {data['network'].get('open_ports', 0)}
+
+"""
+
+        report += """### 3. Port Scan
+
+"""
+
+        if "ports" in data:
+            for port in data["ports"].get("open_ports", []):
+                report += f"- **Port {port.get('port')}/{port.get('protocol')}:** {port.get('service')} ({port.get('state')})\n"
+            report += "\n"
+
+        report += """### 4. Web Exploration
+
+"""
+
+        if "web" in data:
+            report += f"""- **Directories found:** {data['web'].get('directories', 0)}
+- **Files found:** {data['web'].get('files', 0)}
+- **Vulnerabilities:** {data['web'].get('vulnerabilities', 0)}
+
+"""
+
+        report += """### 5. Exploitation
+
+"""
+
+        if "exploits" in data:
+            for exploit, result in data["exploits"].items():
+                status = "[+] Successful" if result.get("success") else "[-] Failed"
+                report += f"- **{exploit}:** {status}\n"
+            report += "\n"
+
+        report += """### 6. Credentials Found
+
+"""
+
+        if "credentials" in data:
+            for cred in data["credentials"]:
+                report += f"- **Service:** {cred.get('service')} | **Username:** {cred.get('username')} | **Password:** {cred.get('password')}\n"
+            report += "\n"
+
+        report += """---
+
+## Vulnerabilities
+
+| # | Vulnerability | Severity | Status |
+|---|----------------|-----------|--------|
+| 1 | Example vulnerability | High | Fixed |
+
+---
+
+## Recommendations
+
+1. **Fix critical vulnerabilities** immediately
+2. **Implement security patches**
+3. **Review security configurations**
+4. **Implement continuous monitoring**
+5. **Train staff** on security
+
+---
+
+## Conclusion
+
+The pentesting has been completed successfully. It is recommended to follow the provided recommendations to improve the organization's security posture.
+
+---
+
+*Generated by BlackSentinel Strike v4.0*
+*Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
+"""
+
+        return report
+
+    def _create_json(self, data, title):
+        """Create report in JSON"""
+        report = {
+            "title": title,
+            "timestamp": datetime.now().isoformat(),
+            "author": "BlackSentinel Strike",
+            "version": "4.0",
+            "data": data
+        }
+        return json.dumps(report, indent=2)
+
+    def _create_html(self, data, title):
+        """Create report in HTML"""
+        html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>
+    <style>
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }}
+        .header {{
+            background: linear-gradient(135deg, #0a0a0f, #1a1a2e);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }}
+        .section {{
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }}
+        h1, h2, h3 {{
+            color: #00d4ff;
+        }}
+        .badge {{
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: bold;
+        }}
+        .badge-success {{ background: #00ff88; color: #000; }}
+        .badge-warning {{ background: #ffaa00; color: #000; }}
+        .badge-danger {{ background: #ff3366; color: #fff; }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }}
+        th, td {{
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }}
+        th {{
+            background-color: #0f3460;
+            color: white;
+        }}
+        tr:hover {{
+            background-color: #f5f5f5;
+        }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1> {title}</h1>
+        <p>Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        <p>Author: BlackSentinel Strike</p>
+    </div>
+    
+    <div class="section">
+        <h2>Executive Summary</h2>
+        <p>This report documents the findings of the pentesting performed.</p>
+    </div>
+    
+    <div class="section">
+        <h2>Findings</h2>
+        <p>Scan and exploitation data...</p>
+    </div>
+    
+    <div class="section">
+        <h2>Recommendations</h2>
+        <ul>
+            <li>Fix critical vulnerabilities</li>
+            <li>Implement security patches</li>
+            <li>Review configurations</li>
+        </ul>
+    </div>
+    
+    <div class="section">
+        <h2>Conclusion</h2>
+        <p>The pentesting has been completed successfully.</p>
+    </div>
+</body>
+</html>
+"""
+        return html
+
+    def save_report(self, content, filename, format="md", password=None):
+        """Save report to file - encrypted if password provided, otherwise plaintext."""
+        try:
+            if password:
+                directory = VAULT_DIR / "reports"
+            else:
+                directory = Path.home() / "hacks" / "reports"
+            Path(directory).mkdir(parents=True, exist_ok=True)
+
+            if password:
+                filepath = os.path.join(directory, f"{filename}.{format}.enc")
+                encrypted = encrypt_data(content.encode("utf-8"), password)
+                with open(filepath, "wb") as f:
+                    f.write(encrypted)
+            else:
+                filepath = os.path.join(directory, f"{filename}.{format}")
+                with open(filepath, "w") as f:
+                    f.write(content)
+
+            self.log(f"Report saved to: {filepath}", "success")
+            return {"success": True, "path": filepath}
+        except Exception as e:
+            self.log(f"Error saving report: {str(e)}", "error")
+            return {"success": False, "error": str(e)}
+
+    def generate_summary(self, data):
+        """Generate executive summary"""
+        try:
+            summary = {
+                "total_hosts": len(data.get("hosts", [])),
+                "total_ports": len(data.get("ports", [])),
+                "total_vulns": len(data.get("vulnerabilities", [])),
+                "total_creds": len(data.get("credentials", [])),
+                "risk_level": self._calculate_risk_level(data)
+            }
+            return {"success": True, "summary": summary}
+        except Exception as e:
+            self.log(f"Error generating summary: {str(e)}", "error")
+            return {"success": False, "error": str(e)}
+
+    def _calculate_risk_level(self, data):
+        """Calculate risk level"""
+        score = 0
+        vulns = data.get("vulnerabilities", {})
+        if isinstance(vulns, dict):
+            score += vulns.get("critical", 0) * 10
+            score += vulns.get("high", 0) * 7
+            score += vulns.get("medium", 0) * 4
+            score += vulns.get("low", 0) * 1
+        score += len(data.get("credentials", [])) * 5
+
+        if score >= 50:
+            return "Critical"
+        elif score >= 30:
+            return "High"
+        elif score >= 15:
+            return "Medium"
+        else:
+            return "Low"
+
+    # ═══════════════════════════════════════════════════════════
+    #  NEW METHOD 1: Executive Summary
+    # ═══════════════════════════════════════════════════════════
+
+    def generate_executive_summary(self, scan_results):
+        """Generate executive summary with risk ratings"""
+        self.log("Generating executive summary...", "info")
+        try:
+            vulns = scan_results.get("vulnerabilities", [])
+            if isinstance(vulns, list):
+                critical = sum(1 for v in vulns if self._get_cvss_severity(v) == "Critical")
+                high = sum(1 for v in vulns if self._get_cvss_severity(v) == "High")
+                medium = sum(1 for v in vulns if self._get_cvss_severity(v) == "Medium")
+                low = sum(1 for v in vulns if self._get_cvss_severity(v) == "Low")
+            else:
+                critical = vulns.get("critical", 0)
+                high = vulns.get("high", 0)
+                medium = vulns.get("medium", 0)
+                low = vulns.get("low", 0)
+
+            risk_score = critical * 10 + high * 7 + medium * 4 + low * 1
+            risk_level = self._score_to_risk_level(risk_score)
+
+            hosts = scan_results.get("hosts", scan_results.get("network", {}).get("hosts_found", 0))
+            if isinstance(hosts, list):
+                hosts = len(hosts)
+
+            creds = scan_results.get("credentials", [])
+            creds_count = len(creds) if isinstance(creds, list) else 0
+
+            summary = {
+                "title": "Executive Summary",
+                "generated_at": datetime.now().isoformat(),
+                "risk_rating": {
+                    "overall": risk_level,
+                    "score": risk_score,
+                    "critical": critical,
+                    "high": high,
+                    "medium": medium,
+                    "low": low
+                },
+                "scope": {
+                    "hosts_scanned": hosts,
+                    "credentials_found": creds_count
+                },
+                "key_findings": self._extract_key_findings(scan_results),
+                "recommendations": self._get_executive_recommendations(risk_level, critical, high)
+            }
+
+            self.log("Executive summary generated", "success")
+            return {"success": True, "data": summary}
+        except Exception as e:
+            self.log(f"Error generating executive summary: {str(e)}", "error")
+            return {"success": False, "error": str(e)}
+
+    def _get_cvss_severity(self, vuln):
+        """Get severity from CVSS score"""
+        score = vuln.get("cvss", vuln.get("score", 0))
+        if isinstance(score, (int, float)) and score >= 9.0:
+            return "Critical"
+        elif isinstance(score, (int, float)) and score >= 7.0:
+            return "High"
+        elif isinstance(score, (int, float)) and score >= 4.0:
+            return "Medium"
+        else:
+            return "Low"
+
+    def _score_to_risk_level(self, score):
+        if score >= 50:
+            return "Critical"
+        elif score >= 30:
+            return "High"
+        elif score >= 15:
+            return "Medium"
+        else:
+            return "Low"
+
+    def _extract_key_findings(self, scan_results):
+        findings = []
+        exploits = scan_results.get("exploits", {})
+        if isinstance(exploits, dict):
+            for name, result in exploits.items():
+                if result.get("success"):
+                    findings.append(f"Successful exploitation: {name}")
+
+        creds = scan_results.get("credentials", [])
+        if creds:
+            findings.append(f"{len(creds)} credentials compromised")
+
+        web_vulns = scan_results.get("web", {}).get("vulnerabilities", 0)
+        if isinstance(web_vulns, int) and web_vulns > 0:
+            findings.append(f"{web_vulns} web vulnerabilities discovered")
+
+        return findings if findings else ["No critical findings"]
+
+    def _get_executive_recommendations(self, risk_level, critical, high):
+        recs = []
+        if critical > 0:
+            recs.append(f"IMMEDIATE ACTION: Remediate {critical} critical vulnerabilities within 24-48 hours")
+        if high > 0:
+            recs.append(f"HIGH PRIORITY: Address {high} high-severity findings within 1-2 weeks")
+        if risk_level in ("Critical", "High"):
+            recs.append("Conduct follow-up assessment after remediation")
+            recs.append("Review access controls and authentication mechanisms")
+        recs.append("Implement continuous security monitoring")
+        recs.append("Schedule regular penetration testing")
+        return recs
+
+    # ═══════════════════════════════════════════════════════════
+    #  NEW METHOD 2: Technical Report
+    # ═══════════════════════════════════════════════════════════
+
+    def generate_technical_report(self, scan_results):
+        """Generate detailed technical findings report"""
+        self.log("Generating technical report...", "info")
+        try:
+            technical = {
+                "title": "Technical Findings Report",
+                "generated_at": datetime.now().isoformat(),
+                "sections": {
+                    "reconnaissance": self._section_recon(scan_results),
+                    "network_analysis": self._section_network(scan_results),
+                    "port_scan": self._section_ports(scan_results),
+                    "web_analysis": self._section_web(scan_results),
+                    "exploitation": self._section_exploitation(scan_results),
+                    "credential_analysis": self._section_credentials(scan_results),
+                    "post_exploitation": self._section_post_exploitation(scan_results)
+                }
+            }
+
+            self.log("Technical report generated", "success")
+            return {"success": True, "data": technical}
+        except Exception as e:
+            self.log(f"Error generating technical report: {str(e)}", "error")
+            return {"success": False, "error": str(e)}
+
+    def _section_recon(self, data):
+        recon = data.get("recon", {})
+        return {
+            "dns": recon.get("dns", {}),
+            "whois": recon.get("whois", {}),
+            "subdomains": recon.get("dns", {}).get("subdomains", []),
+            "osint": recon.get("osint", {})
+        }
+
+    def _section_network(self, data):
+        network = data.get("network", {})
+        return {
+            "hosts_found": network.get("hosts_found", 0),
+            "open_ports": network.get("open_ports", 0),
+            "hosts": network.get("hosts", []),
+            "network_range": network.get("range", "N/A")
+        }
+
+    def _section_ports(self, data):
+        ports = data.get("ports", {})
+        open_ports = ports.get("open_ports", [])
+        services = {}
+        for p in open_ports:
+            svc = p.get("service", "unknown")
+            if svc not in services:
+                services[svc] = []
+            services[svc].append(p)
+        return {"open_ports": open_ports, "services_summary": services}
+
+    def _section_web(self, data):
+        web = data.get("web", {})
+        return {
+            "directories": web.get("directories", 0),
+            "files": web.get("files", 0),
+            "vulnerabilities": web.get("vulnerabilities", 0),
+            "technologies": web.get("technologies", []),
+            "forms": web.get("forms", [])
+        }
+
+    def _section_exploitation(self, data):
+        exploits = data.get("exploits", {})
+        successful = []
+        failed = []
+        for name, result in exploits.items():
+            if result.get("success"):
+                successful.append({"name": name, "details": result})
+            else:
+                failed.append({"name": name, "details": result})
+        return {"successful": successful, "failed": failed, "success_rate": f"{len(successful)}/{len(successful)+len(failed)}"}
+
+    def _section_credentials(self, data):
+        creds = data.get("credentials", [])
+        services = {}
+        for c in creds:
+            svc = c.get("service", "unknown")
+            if svc not in services:
+                services[svc] = 0
+            services[svc] += 1
+        return {"total": len(creds), "by_service": services, "credentials": creds}
+
+    def _section_post_exploitation(self, data):
+        return {
+            "data_exfiltration": data.get("exfiltrated", []),
+            "persistence": data.get("persistence", []),
+            "lateral_movement": data.get("lateral_movement", [])
+        }
+
+    # ═══════════════════════════════════════════════════════════
+    #  NEW METHOD 3: Compliance Report
+    # ═══════════════════════════════════════════════════════════
+
+    def generate_compliance_report(self, scan_results, framework="PCI-DSS"):
+        """Generate compliance mapping report"""
+        self.log(f"Generating compliance report for {framework}...", "info")
+        try:
+            frameworks = {
+                "PCI-DSS": self._pci_dss_mapping(scan_results),
+                "HIPAA": self._hipaa_mapping(scan_results),
+                "NIST": self._nist_mapping(scan_results),
+                "ISO27001": self._iso27001_mapping(scan_results),
+                "SOC2": self._soc2_mapping(scan_results)
+            }
+
+            mapping = frameworks.get(framework, frameworks["PCI-DSS"])
+
+            report = {
+                "title": f"Compliance Report - {framework}",
+                "generated_at": datetime.now().isoformat(),
+                "framework": framework,
+                "findings_summary": {
+                    "total_controls": len(mapping.get("controls", [])),
+                    "compliant": sum(1 for c in mapping.get("controls", []) if c.get("status") == "Compliant"),
+                    "non_compliant": sum(1 for c in mapping.get("controls", []) if c.get("status") == "Non-Compliant"),
+                    "partial": sum(1 for c in mapping.get("controls", []) if c.get("status") == "Partial")
+                },
+                "controls": mapping.get("controls", []),
+                "remediation_required": mapping.get("remediation", [])
+            }
+
+            self.log(f"Compliance report for {framework} generated", "success")
+            return {"success": True, "data": report}
+        except Exception as e:
+            self.log(f"Error generating compliance report: {str(e)}", "error")
+            return {"success": False, "error": str(e)}
+
+    def _pci_dss_mapping(self, data):
+        controls = []
+        creds = data.get("credentials", [])
+        web = data.get("web", {})
+        vulns = data.get("vulnerabilities", {})
+
+        controls.append({"id": "PCI-DSS 1.1", "control": "Firewall configuration", "status": "Non-Compliant" if data.get("network", {}).get("hosts_found", 0) > 0 else "Unknown", "evidence": "Network scan results show active hosts"})
+        controls.append({"id": "PCI-DSS 2.1", "control": "Change vendor-supplied defaults", "status": "Partial", "evidence": "Default credentials may be in use"})
+        controls.append({"id": "PCI-DSS 6.1", "control": "Identify vulnerabilities", "status": "Non-Compliant" if isinstance(vulns, dict) and vulns.get("critical", 0) > 0 else "Partial", "evidence": "Vulnerability scan performed"})
+        controls.append({"id": "PCI-DSS 8.1", "control": "Authentication mechanisms", "status": "Non-Compliant" if len(creds) > 0 else "Partial", "evidence": f"{len(creds)} credentials found"})
+        controls.append({"id": "PCI-DSS 11.2", "control": "Vulnerability scanning", "status": "Compliant", "evidence": "Automated scanning completed"})
+
+        return {"controls": controls, "remediation": ["Implement network segmentation", "Enforce strong authentication", "Patch critical vulnerabilities"]}
+
+    def _hipaa_mapping(self, data):
+        controls = []
+        creds = data.get("credentials", [])
+        controls.append({"id": "HIPAA 164.312(a)", "control": "Access Control", "status": "Non-Compliant" if len(creds) > 0 else "Partial", "evidence": f"{len(creds)} unauthorized access instances"})
+        controls.append({"id": "HIPAA 164.312(e)", "control": "Transmission Security", "status": "Partial", "evidence": "Encryption status requires review"})
+        controls.append({"id": "HIPAA 164.308(a)(5)", "control": "Security Awareness Training", "status": "Unknown", "evidence": "Social engineering not assessed"})
+        controls.append({"id": "HIPAA 164.312(b)", "control": "Audit Controls", "status": "Partial", "evidence": "Logging status requires verification"})
+
+        return {"controls": controls, "remediation": ["Implement role-based access control", "Enable encryption at rest and in transit", "Enable comprehensive audit logging"]}
+
+    def _nist_mapping(self, data):
+        controls = []
+        controls.append({"id": "NIST PR.AC-1", "control": "Identity Management", "status": "Partial", "evidence": "Credential management review needed"})
+        controls.append({"id": "NIST PR.AC-7", "control": "Unsuccessful Login Attempts", "status": "Unknown", "evidence": "Brute force testing performed"})
+        controls.append({"id": "NIST PR.DS-1", "control": "Data at Rest Protection", "status": "Unknown", "evidence": "Data encryption status unknown"})
+        controls.append({"id": "NIST PR.IP-2", "control": "Security Architecture", "status": "Partial", "evidence": "Network topology mapped"})
+        controls.append({"id": "NIST DE.CM-1", "control": "Network Monitoring", "status": "Partial", "evidence": "IDS/IPS effectiveness requires testing"})
+
+        return {"controls": controls, "remediation": ["Strengthen identity management", "Implement data loss prevention", "Enhance network monitoring"]}
+
+    def _iso27001_mapping(self, data):
+        controls = []
+        controls.append({"id": "ISO A.9.1", "control": "Access Control Policy", "status": "Non-Compliant" if data.get("credentials") else "Partial", "evidence": "Authentication controls require strengthening"})
+        controls.append({"id": "ISO A.12.6", "control": "Technical Vulnerability Management", "status": "Partial", "evidence": "Vulnerability management process in place"})
+        controls.append({"id": "ISO A.13.1", "control": "Network Security Management", "status": "Partial", "evidence": "Network controls require review"})
+        controls.append({"id": "ISO A.14.2", "control": "Secure Development", "status": "Unknown", "evidence": "Application security requires testing"})
+
+        return {"controls": controls, "remediation": ["Implement formal access control policy", "Establish vulnerability management program", "Review network security architecture"]}
+
+    def _soc2_mapping(self, data):
+        controls = []
+        controls.append({"id": "CC6.1", "control": "Logical Access Controls", "status": "Partial", "evidence": "Access control mechanisms identified"})
+        controls.append({"id": "CC6.6", "control": "External Threats", "status": "Partial", "evidence": "External attack vectors mapped"})
+        controls.append({"id": "CC7.1", "control": "Vulnerability Management", "status": "Partial", "evidence": "Vulnerability scanning completed"})
+        controls.append({"id": "CC8.1", "control": "Change Management", "status": "Unknown", "evidence": "Change management review needed"})
+        controls.append({"id": "A1.2", "control": "Environmental Protections", "status": "Unknown", "evidence": "Environmental controls not assessed"})
+
+        return {"controls": controls, "remediation": ["Strengthen logical access controls", "Implement continuous monitoring", "Establish formal change management"]}
+
+    # ═══════════════════════════════════════════════════════════
+    #  NEW METHOD 4: CVSS Calculator
+    # ═══════════════════════════════════════════════════════════
+
+    def generate_cvss_calculator(self, vuln_data):
+        """Calculate CVSS v3.1 scores from vulnerability data"""
+        self.log("Calculating CVSS v3.1 scores...", "info")
+        try:
+            av_map = {"NETWORK": 0.85, "ADJACENT_NETWORK": 0.62, "LOCAL": 0.55, "PHYSICAL": 0.20}
+            ac_map = {"LOW": 0.77, "HIGH": 0.44}
+            pr_map_base = {"NONE": 0.85, "LOW": 0.62, "HIGH": 0.27}
+            ui_map = {"NONE": 0.85, "REQUIRED": 0.62}
+            impact_map = {"NONE": 0.0, "LOW": 0.22, "HIGH": 0.56}
+
+            av = vuln_data.get("attack_vector", "NETWORK").upper()
+            ac = vuln_data.get("attack_complexity", "LOW").upper()
+            pr = vuln_data.get("privileges_required", "NONE").upper()
+            ui = vuln_data.get("user_interaction", "NONE").upper()
+            scope = vuln_data.get("scope", "UNCHANGED").upper()
+            conf = vuln_data.get("confidentiality", "LOW").upper()
+            integ = vuln_data.get("integrity", "LOW").upper()
+            avail = vuln_data.get("availability", "LOW").upper()
+
+            isc_base = 1 - ((1 - impact_map.get(conf, 0.22)) * (1 - impact_map.get(integ, 0.22)) * (1 - impact_map.get(avail, 0.22)))
+
+            if scope == "CHANGED":
+                pr_factor = pr_map_base.get(pr, 0.85)
+                isc = 7.52 * (isc_base - 0.029) - 3.25 * ((isc_base - 0.02) ** 15)
+            else:
+                pr_factor = pr_map_base.get(pr, 0.85)
+                isc = 6.42 * isc_base
+
+            exploitability = 8.22 * av_map.get(av, 0.85) * ac_map.get(ac, 0.77) * pr_factor * ui_map.get(ui, 0.85)
+
+            if scope == "UNCHANGED":
+                score = min(isc + exploitability, 10.0)
+            else:
+                score = min(1.08 * (isc + exploitability), 10.0)
+
+            score = round(score, 1)
+
+            if score >= 9.0:
+                severity = "Critical"
+            elif score >= 7.0:
+                severity = "High"
+            elif score >= 4.0:
+                severity = "Medium"
+            else:
+                severity = "Low"
+
+            result = {
+                "cvss_version": "3.1",
+                "base_score": score,
+                "severity": severity,
+                "vector": {
+                    "attack_vector": av,
+                    "attack_complexity": ac,
+                    "privileges_required": pr,
+                    "user_interaction": ui,
+                    "scope": scope,
+                    "confidentiality": conf,
+                    "integrity": integ,
+                    "availability": avail
+                },
+                "vector_string": f"CVSS:3.1/AV:{av[0]}/AC:{ac[0]}/PR:{pr[0]}/UI:{ui[0]}/S:{scope[0]}/C:{conf[0]}/I:{integ[0]}/A:{avail[0]}"
+            }
+
+            self.log(f"CVSS score calculated: {score} ({severity})", "success")
+            return {"success": True, "data": result}
+        except Exception as e:
+            self.log(f"Error calculating CVSS: {str(e)}", "error")
+            return {"success": False, "error": str(e)}
+
+    # ═══════════════════════════════════════════════════════════
+    #  NEW METHOD 5: Risk Matrix
+    # ═══════════════════════════════════════════════════════════
+
+    def generate_risk_matrix(self, findings):
+        """Generate risk heat map data"""
+        self.log("Generating risk matrix...", "info")
+        try:
+            matrix = {
+                "title": "Risk Matrix",
+                "generated_at": datetime.now().isoformat(),
+                "axes": {
+                    "x": "Likelihood",
+                    "y": "Impact",
+                    "x_values": ["Rare", "Unlikely", "Possible", "Likely", "Certain"],
+                    "y_values": ["Negligible", "Minor", "Moderate", "Major", "Critical"]
+                },
+                "cells": [[[] for _ in range(5)] for _ in range(5)],
+                "summary": {
+                    "critical": 0,
+                    "high": 0,
+                    "medium": 0,
+                    "low": 0
+                }
+            }
+
+            likelihood_map = {"Rare": 0, "Unlikely": 1, "Possible": 2, "Likely": 3, "Certain": 4}
+            impact_map = {"Negligible": 0, "Minor": 1, "Moderate": 2, "Major": 3, "Critical": 4}
+            severity_levels = {0: "low", 1: "low", 2: "medium", 3: "medium", 4: "high", 5: "high", 6: "high", 7: "critical", 8: "critical", 9: "critical", 10: "critical", 11: "critical", 12: "critical", 13: "critical", 14: "critical", 15: "critical"}
+
+            for f in findings if isinstance(findings, list) else []:
+                likelihood = f.get("likelihood", "Possible")
+                impact = f.get("impact", "Moderate")
+                li = likelihood_map.get(likelihood, 2)
+                im = impact_map.get(impact, 2)
+
+                risk_value = li * im
+                severity = severity_levels.get(risk_value, "medium")
+
+                matrix["cells"][im][li].append({
+                    "name": f.get("name", "Unknown"),
+                    "description": f.get("description", ""),
+                    "risk_score": risk_value,
+                    "severity": severity
+                })
+                matrix["summary"][severity] += 1
+
+            self.log("Risk matrix generated", "success")
+            return {"success": True, "data": matrix}
+        except Exception as e:
+            self.log(f"Error generating risk matrix: {str(e)}", "error")
+            return {"success": False, "error": str(e)}
+
+    # ═══════════════════════════════════════════════════════════
+    #  NEW METHOD 6: Remediation Plan
+    # ═══════════════════════════════════════════════════════════
+
+    def generate_remediation_plan(self, findings):
+        """Generate prioritized remediation steps"""
+        self.log("Generating remediation plan...", "info")
+        try:
+            if isinstance(findings, list):
+                findings_list = findings
+            else:
+                findings_list = []
+                for f in findings.get("findings", []):
+                    findings_list.append(f)
+
+            findings_list.sort(key=lambda x: self._remediation_priority_score(x), reverse=True)
+
+            plan = {
+                "title": "Remediation Plan",
+                "generated_at": datetime.now().isoformat(),
+                "total_items": len(findings_list),
+                "phases": {
+                    "immediate_0_48h": [],
+                    "short_term_1_2w": [],
+                    "medium_term_1_3m": [],
+                    "long_term_3_6m": []
+                },
+                "estimated_total_effort": "N/A"
+            }
+
+            for f in findings_list:
+                severity = f.get("severity", "medium").lower()
+                item = {
+                    "name": f.get("name", f.get("vulnerability", "Unknown")),
+                    "description": f.get("description", ""),
+                    "severity": severity,
+                    "affected_systems": f.get("affected_systems", []),
+                    "steps": f.get("remediation_steps", ["Identify root cause", "Apply patch or fix", "Test in staging", "Deploy to production"]),
+                    "estimated_effort": f.get("effort", "Medium"),
+                    "references": f.get("references", [])
+                }
+
+                if severity in ("critical", "high"):
+                    plan["phases"]["immediate_0_48h"].append(item)
+                elif severity == "medium":
+                    plan["phases"]["short_term_1_2w"].append(item)
+                elif severity == "low":
+                    plan["phases"]["medium_term_1_3m"].append(item)
+                else:
+                    plan["phases"]["long_term_3_6m"].append(item)
+
+            plan["summary"] = {
+                "immediate": len(plan["phases"]["immediate_0_48h"]),
+                "short_term": len(plan["phases"]["short_term_1_2w"]),
+                "medium_term": len(plan["phases"]["medium_term_1_3m"]),
+                "long_term": len(plan["phases"]["long_term_3_6m"])
+            }
+
+            self.log("Remediation plan generated", "success")
+            return {"success": True, "data": plan}
+        except Exception as e:
+            self.log(f"Error generating remediation plan: {str(e)}", "error")
+            return {"success": False, "error": str(e)}
+
+    def _remediation_priority_score(self, item):
+        severity = item.get("severity", "low").lower()
+        scores = {"critical": 100, "high": 75, "medium": 50, "low": 25}
+        return scores.get(severity, 0)
+
+    # ═══════════════════════════════════════════════════════════
+    #  NEW METHOD 7: PDF Export
+    # ═══════════════════════════════════════════════════════════
+
+    def export_pdf(self, report_data, output_path):
+        """Export report to PDF using available tools"""
+        self.log("Exporting PDF report...", "info")
+        try:
+            html_content = self._create_html(report_data, report_data.get("title", "Report"))
+            html_path = output_path.replace(".pdf", ".html")
+
+            with open(html_path, "w") as f:
+                f.write(html_content)
+
+            try:
+                result = subprocess.run(
+                    ["wkhtmltopdf", "--quiet", html_path, output_path],
+                    capture_output=True, text=True, timeout=60
+                )
+                if result.returncode == 0:
+                    os.remove(html_path)
+                    self.log(f"PDF exported to: {output_path}", "success")
+                    return {"success": True, "path": output_path}
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                self.log("wkhtmltopdf not available, HTML fallback saved", "warning")
+                return {"success": True, "path": html_path, "fallback": True}
+
+            return {"success": True, "path": html_path, "fallback": True}
+        except Exception as e:
+            self.log(f"Error exporting PDF: {str(e)}", "error")
+            return {"success": False, "error": str(e)}
+
+    # ═══════════════════════════════════════════════════════════
+    #  NEW METHOD 8: HTML Export
+    # ═══════════════════════════════════════════════════════════
+
+    def export_html(self, report_data, output_path):
+        """Export report to styled HTML"""
+        self.log("Exporting HTML report...", "info")
+        try:
+            html_content = self._create_html(report_data, report_data.get("title", "Report"))
+
+            Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+            with open(output_path, "w") as f:
+                f.write(html_content)
+
+            self.log(f"HTML exported to: {output_path}", "success")
+            return {"success": True, "path": output_path}
+        except Exception as e:
+            self.log(f"Error exporting HTML: {str(e)}", "error")
+            return {"success": False, "error": str(e)}
+
+    # ═══════════════════════════════════════════════════════════
+    #  NEW METHOD 9: CSV Export
+    # ═══════════════════════════════════════════════════════════
+
+    def export_csv(self, findings, output_path):
+        """Export findings to CSV"""
+        self.log("Exporting CSV report...", "info")
+        try:
+            Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+            with open(output_path, "w", newline="") as f:
+                if isinstance(findings, list) and len(findings) > 0:
+                    headers = list(findings[0].keys())
+                    writer = csv.DictWriter(f, fieldnames=headers)
+                    writer.writeheader()
+                    writer.writerows(findings)
+                else:
+                    writer = csv.writer(f)
+                    writer.writerow(["Name", "Severity", "Description", "Status"])
+                    writer.writerow(["No findings", "N/A", "No vulnerabilities found", "Clean"])
+
+            self.log(f"CSV exported to: {output_path}", "success")
+            return {"success": True, "path": output_path, "rows": len(findings) if isinstance(findings, list) else 0}
+        except Exception as e:
+            self.log(f"Error exporting CSV: {str(e)}", "error")
+            return {"success": False, "error": str(e)}
+
+    # ═══════════════════════════════════════════════════════════
+    #  NEW METHOD 10: JSON Export
+    # ═══════════════════════════════════════════════════════════
+
+    def export_json(self, report_data, output_path):
+        """Export report to JSON"""
+        self.log("Exporting JSON report...", "info")
+        try:
+            Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+            export = {
+                "report": report_data,
+                "metadata": {
+                    "generated_at": datetime.now().isoformat(),
+                    "generator": "BlackSentinel Strike v4.0",
+                    "format": "json"
+                }
+            }
+            with open(output_path, "w") as f:
+                json.dump(export, f, indent=2, default=str)
+
+            self.log(f"JSON exported to: {output_path}", "success")
+            return {"success": True, "path": output_path}
+        except Exception as e:
+            self.log(f"Error exporting JSON: {str(e)}", "error")
+            return {"success": False, "error": str(e)}
+
+    # ═══════════════════════════════════════════════════════════
+    #  NEW METHOD 11: Markdown Export
+    # ═══════════════════════════════════════════════════════════
+
+    def export_markdown(self, report_data, output_path):
+        """Export report to Markdown"""
+        self.log("Exporting Markdown report...", "info")
+        try:
+            content = self._create_markdown(report_data, report_data.get("title", "Report"))
+            Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+            with open(output_path, "w") as f:
+                f.write(content)
+
+            self.log(f"Markdown exported to: {output_path}", "success")
+            return {"success": True, "path": output_path}
+        except Exception as e:
+            self.log(f"Error exporting Markdown: {str(e)}", "error")
+            return {"success": False, "error": str(e)}
+
+    # ═══════════════════════════════════════════════════════════
+    #  NEW METHOD 12: DOCX Export
+    # ═══════════════════════════════════════════════════════════
+
+    def export_docx(self, report_data, output_path):
+        """Export report to Word document"""
+        self.log("Exporting DOCX report...", "info")
+        try:
+            try:
+                from docx import Document
+                from docx.shared import Pt
+                from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+                doc = Document()
+                style = doc.styles['Normal']
+                style.font.name = 'Calibri'
+                style.font.size = Pt(11)
+
+                title_para = doc.add_heading(report_data.get("title", "Pentest Report"), 0)
+                title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+                doc.add_paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                doc.add_paragraph(f"Author: BlackSentinel Strike v4.0")
+                doc.add_page_break()
+
+                doc.add_heading("Executive Summary", level=1)
+                risk = report_data.get("risk_rating", {})
+                doc.add_paragraph(f"Overall Risk: {risk.get('overall', 'N/A')}")
+                doc.add_paragraph(f"Critical: {risk.get('critical', 0)}, High: {risk.get('high', 0)}, Medium: {risk.get('medium', 0)}, Low: {risk.get('low', 0)}")
+
+                if "key_findings" in report_data:
+                    doc.add_heading("Key Findings", level=2)
+                    for finding in report_data["key_findings"]:
+                        doc.add_paragraph(finding, style='List Bullet')
+
+                Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+                doc.save(output_path)
+
+                self.log(f"DOCX exported to: {output_path}", "success")
+                return {"success": True, "path": output_path}
+            except ImportError:
+                fallback_path = output_path.replace(".docx", ".md")
+                content = self._create_markdown(report_data, report_data.get("title", "Report"))
+                with open(fallback_path, "w") as f:
+                    f.write(content)
+                self.log("python-docx not available, Markdown fallback saved", "warning")
+                return {"success": True, "path": fallback_path, "fallback": "markdown"}
+        except Exception as e:
+            self.log(f"Error exporting DOCX: {str(e)}", "error")
+            return {"success": False, "error": str(e)}
+
+    # ═══════════════════════════════════════════════════════════
+    #  NEW METHOD 13: Attack Timeline
+    # ═══════════════════════════════════════════════════════════
+
+    def generate_timeline(self, scan_results):
+        """Generate attack timeline visualization data"""
+        self.log("Generating attack timeline...", "info")
+        try:
+            timeline = {
+                "title": "Attack Timeline",
+                "generated_at": datetime.now().isoformat(),
+                "events": [],
+                "phases": []
+            }
+
+            phase_order = ["Reconnaissance", "Scanning", "Enumeration", "Exploitation", "Post-Exploitation"]
+
+            events = []
+
+            if scan_results.get("recon"):
+                events.append({"phase": "Reconnaissance", "time": "T+0h", "event": "DNS enumeration started", "details": scan_results["recon"].get("dns", {})})
+                events.append({"phase": "Reconnaissance", "time": "T+0.5h", "event": "WHOIS lookup completed", "details": {}})
+                events.append({"phase": "Reconnaissance", "time": "T+1h", "event": "Subdomain enumeration", "details": {"count": len(scan_results["recon"].get("dns", {}).get("subdomains", []))}})
+
+            if scan_results.get("network") or scan_results.get("ports"):
+                events.append({"phase": "Scanning", "time": "T+1.5h", "event": "Port scan initiated", "details": {}})
+                events.append({"phase": "Scanning", "time": "T+2h", "event": "Service detection", "details": {}})
+
+            if scan_results.get("web"):
+                events.append({"phase": "Enumeration", "time": "T+2.5h", "event": "Web directory brute-force", "details": {}})
+                events.append({"phase": "Enumeration", "time": "T+3h", "event": "Technology fingerprinting", "details": {}})
+
+            if scan_results.get("exploits"):
+                for name, result in scan_results["exploits"].items():
+                    events.append({
+                        "phase": "Exploitation",
+                        "time": "T+3.5h",
+                        "event": f"Exploit attempt: {name}",
+                        "details": {"success": result.get("success", False)}
+                    })
+
+            timeline["events"] = events
+
+            for phase in phase_order:
+                phase_events = [e for e in events if e.get("phase") == phase]
+                timeline["phases"].append({
+                    "name": phase,
+                    "event_count": len(phase_events),
+                    "events": phase_events
+                })
+
+            self.log("Attack timeline generated", "success")
+            return {"success": True, "data": timeline}
+        except Exception as e:
+            self.log(f"Error generating timeline: {str(e)}", "error")
+            return {"success": False, "error": str(e)}
+
+    # ═══════════════════════════════════════════════════════════
+    #  NEW METHOD 14: Network Diagram
+    # ═══════════════════════════════════════════════════════════
+
+    def generate_network_diagram(self, scan_results):
+        """Generate network topology data"""
+        self.log("Generating network diagram data...", "info")
+        try:
+            diagram = {
+                "title": "Network Topology",
+                "generated_at": datetime.now().isoformat(),
+                "nodes": [],
+                "edges": [],
+                "legend": {
+                    "attacker": "red",
+                    "host": "blue",
+                    "service": "green",
+                    "vulnerable": "orange"
+                }
+            }
+
+            diagram["nodes"].append({
+                "id": "attacker",
+                "type": "attacker",
+                "label": "Attacker",
+                "ip": "N/A"
+            })
+
+            network = scan_results.get("network", {})
+            hosts = network.get("hosts", [])
+
+            if isinstance(hosts, list):
+                for i, host in enumerate(hosts):
+                    host_id = f"host_{i}"
+                    host_ip = host if isinstance(host, str) else host.get("ip", f"10.0.0.{i}")
+                    diagram["nodes"].append({
+                        "id": host_id,
+                        "type": "host",
+                        "label": f"Host {i+1}",
+                        "ip": host_ip
+                    })
+                    diagram["edges"].append({"source": "attacker", "target": host_id, "type": "network"})
+            else:
+                hosts_found = network.get("hosts_found", 0)
+                for i in range(min(hosts_found, 20)):
+                    host_id = f"host_{i}"
+                    diagram["nodes"].append({
+                        "id": host_id,
+                        "type": "host",
+                        "label": f"Host {i+1}",
+                        "ip": f"10.0.0.{i+1}"
+                    })
+                    diagram["edges"].append({"source": "attacker", "target": host_id, "type": "network"})
+
+            ports_data = scan_results.get("ports", {})
+            open_ports = ports_data.get("open_ports", [])
+            for i, port_info in enumerate(open_ports):
+                svc_id = f"service_{i}"
+                diagram["nodes"].append({
+                    "id": svc_id,
+                    "type": "service",
+                    "label": port_info.get("service", "unknown"),
+                    "port": port_info.get("port", 0)
+                })
+
+            diagram["summary"] = {
+                "total_nodes": len(diagram["nodes"]),
+                "total_edges": len(diagram["edges"]),
+                "hosts": len([n for n in diagram["nodes"] if n["type"] == "host"]),
+                "services": len([n for n in diagram["nodes"] if n["type"] == "service"])
+            }
+
+            self.log("Network diagram data generated", "success")
+            return {"success": True, "data": diagram}
+        except Exception as e:
+            self.log(f"Error generating network diagram: {str(e)}", "error")
+            return {"success": False, "error": str(e)}
+
+    # ═══════════════════════════════════════════════════════════
+    #  NEW METHOD 15: Comparison
+    # ═══════════════════════════════════════════════════════════
+
+    def generate_comparison(self, baseline, current):
+        """Compare scan results over time"""
+        self.log("Generating scan comparison...", "info")
+        try:
+            comparison = {
+                "title": "Scan Comparison Report",
+                "generated_at": datetime.now().isoformat(),
+                "baseline_date": baseline.get("timestamp", "N/A"),
+                "current_date": current.get("timestamp", "N/A"),
+                "changes": {
+                    "hosts": self._compare_counts(
+                        baseline.get("network", {}).get("hosts_found", 0),
+                        current.get("network", {}).get("hosts_found", 0),
+                        "hosts"
+                    ),
+                    "open_ports": self._compare_counts(
+                        baseline.get("network", {}).get("open_ports", 0),
+                        current.get("network", {}).get("open_ports", 0),
+                        "open ports"
+                    ),
+                    "vulnerabilities": self._compare_vulns(
+                        baseline.get("vulnerabilities", {}),
+                        current.get("vulnerabilities", {})
+                    ),
+                    "credentials": self._compare_counts(
+                        len(baseline.get("credentials", [])),
+                        len(current.get("credentials", [])),
+                        "credentials"
+                    )
+                },
+                "new_findings": [],
+                "resolved_findings": [],
+                "risk_change": self._calculate_risk_change(baseline, current)
+            }
+
+            baseline_vulns = set()
+            current_vulns = set()
+
+            if isinstance(baseline.get("vulnerabilities"), dict):
+                for sev in baseline["vulnerabilities"]:
+                    for v in baseline["vulnerabilities"][sev] if isinstance(baseline["vulnerabilities"][sev], list) else []:
+                        baseline_vulns.add(str(v))
+            if isinstance(current.get("vulnerabilities"), dict):
+                for sev in current["vulnerabilities"]:
+                    for v in current["vulnerabilities"][sev] if isinstance(current["vulnerabilities"][sev], list) else []:
+                        current_vulns.add(str(v))
+
+            comparison["new_findings"] = list(current_vulns - baseline_vulns)
+            comparison["resolved_findings"] = list(baseline_vulns - current_vulns)
+
+            self.log("Scan comparison generated", "success")
+            return {"success": True, "data": comparison}
+        except Exception as e:
+            self.log(f"Error generating comparison: {str(e)}", "error")
+            return {"success": False, "error": str(e)}
+
+    def _compare_counts(self, baseline_val, current_val, label):
+        diff = current_val - baseline_val
+        return {"baseline": baseline_val, "current": current_val, "difference": diff, "direction": "increased" if diff > 0 else "decreased" if diff < 0 else "unchanged"}
+
+    def _compare_vulns(self, baseline, current):
+        result = {}
+        for sev in ["critical", "high", "medium", "low"]:
+            b = baseline.get(sev, 0) if isinstance(baseline, dict) else 0
+            c = current.get(sev, 0) if isinstance(current, dict) else 0
+            result[sev] = {"baseline": b, "current": c, "difference": c - b}
+        return result
+
+    def _calculate_risk_change(self, baseline, current):
+        b_risk = self._calculate_risk_level(baseline)
+        c_risk = self._calculate_risk_level(current)
+        return {"baseline": b_risk, "current": c_risk, "changed": b_risk != c_risk}
+
+    # ═══════════════════════════════════════════════════════════
+    #  NEW METHOD 16: Pentest Plan
+    # ═══════════════════════════════════════════════════════════
+
+    def generate_pentest_plan(self, scope):
+        """Generate pentest planning document"""
+        self.log("Generating pentest plan...", "info")
+        try:
+            if isinstance(scope, str):
+                scope = {"target": scope, "type": "external"}
+
+            plan = {
+                "title": "Penetration Test Plan",
+                "generated_at": datetime.now().isoformat(),
+                "engagement_info": {
+                    "client": scope.get("client", "Client Name"),
+                    "target": scope.get("target", "N/A"),
+                    "scope_type": scope.get("type", "external"),
+                    "start_date": scope.get("start_date", (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")),
+                    "end_date": scope.get("end_date", (datetime.now() + timedelta(days=21)).strftime("%Y-%m-%d")),
+                    "pentester": scope.get("pentester", "BlackSentinel Team")
+                },
+                "objectives": [
+                    "Identify vulnerabilities in target infrastructure",
+                    "Assess exploitation potential and impact",
+                    "Evaluate existing security controls",
+                    "Provide actionable remediation guidance"
+                ],
+                "phases": [
+                    {"phase": 1, "name": "Pre-engagement", "duration": "1-2 days", "tasks": ["Define scope and rules of engagement", "Obtain written authorization", "Set up communication channels", "Review legal and compliance requirements"]},
+                    {"phase": 2, "name": "Reconnaissance", "duration": "2-3 days", "tasks": ["Passive information gathering", "OSINT collection", "DNS enumeration", "WHOIS lookups", "Social media analysis"]},
+                    {"phase": 3, "name": "Scanning & Enumeration", "duration": "2-3 days", "tasks": ["Network discovery", "Port scanning", "Service identification", "OS fingerprinting", "Vulnerability scanning"]},
+                    {"phase": 4, "name": "Exploitation", "duration": "3-5 days", "tasks": ["Manual vulnerability verification", "Exploit development/customization", "Controlled exploitation attempts", "Privilege escalation", "Credential harvesting"]},
+                    {"phase": 5, "name": "Post-Exploitation", "duration": "2-3 days", "tasks": ["Data exfiltration assessment", "Lateral movement", "Persistence testing", "Impact demonstration"]},
+                    {"phase": 6, "name": "Reporting", "duration": "2-3 days", "tasks": ["Document all findings", "Develop remediation plan", "Executive summary preparation", "Technical report writing", "Client debrief presentation"]}
+                ],
+                "tools": {
+                    "reconnaissance": ["Nmap", "Shodan", "Maltego", "theHarvester", "Recon-ng"],
+                    "scanning": ["Nmap", "Nikto", "OWASP ZAP", "Nessus"],
+                    "exploitation": ["Metasploit", "Custom exploits", "Burp Suite"],
+                    "post_exploitation": ["Meterpreter", "PowerShell Empire", "BloodHound"],
+                    "reporting": ["BlackSentinel Strike", "Custom templates"]
+                },
+                "risk_assessment": {
+                    "data_sensitivity": scope.get("sensitivity", "Medium"),
+                    "system_criticality": scope.get("criticality", "Medium"),
+                    "approved_techniques": scope.get("techniques", "All standard techniques"),
+                    "out_of_scope": scope.get("out_of_scope", ["Denial of Service", "Social engineering of C-level executives"])
+                },
+                "deliverables": [
+                    "Executive Summary Report",
+                    "Technical Findings Report",
+                    "Risk Matrix and Heat Map",
+                    "Remediation Plan",
+                    "Compliance Mapping (if applicable)"
+                ]
+            }
+
+            self.log("Pentest plan generated", "success")
+            return {"success": True, "data": plan}
+        except Exception as e:
+            self.log(f"Error generating pentest plan: {str(e)}", "error")
+            return {"success": False, "error": str(e)}
+
+    # ═══════════════════════════════════════════════════════════
+    #  NEW METHOD 17: Vulnerability DB Export
+    # ═══════════════════════════════════════════════════════════
+
+    def generate_vulnerability_db(self, findings):
+        """Export vulnerability database"""
+        self.log("Generating vulnerability database...", "info")
+        try:
+            db = {
+                "title": "Vulnerability Database Export",
+                "generated_at": datetime.now().isoformat(),
+                "total_vulnerabilities": len(findings) if isinstance(findings, list) else 0,
+                "vulnerabilities": []
+            }
+
+            findings_list = findings if isinstance(findings, list) else findings.get("findings", []) if isinstance(findings, dict) else []
+
+            for i, f in enumerate(findings_list, 1):
+                vuln_id = f.get("id", f"VULN-{i:04d}")
+                db["vulnerabilities"].append({
+                    "id": vuln_id,
+                    "name": f.get("name", f.get("vulnerability", "Unknown")),
+                    "description": f.get("description", "N/A"),
+                    "severity": f.get("severity", "medium"),
+                    "cvss_score": f.get("cvss", f.get("score", 0)),
+                    "cve": f.get("cve", "N/A"),
+                    "affected_systems": f.get("affected_systems", []),
+                    "remediation": f.get("remediation_steps", ["Apply available patches"]),
+                    "references": f.get("references", []),
+                    "first_detected": f.get("first_seen", datetime.now().isoformat()),
+                    "last_seen": f.get("last_seen", datetime.now().isoformat()),
+                    "hash": hashlib.sha256(json.dumps(f, default=str).encode()).hexdigest()[:16]
+                })
+
+            db["summary"] = {
+                "by_severity": {},
+                "by_cve_present": sum(1 for v in db["vulnerabilities"] if v["cve"] != "N/A"),
+                "unique_systems": len(set(s for v in db["vulnerabilities"] for s in v["affected_systems"]))
+            }
+
+            for v in db["vulnerabilities"]:
+                sev = v["severity"]
+                if sev not in db["summary"]["by_severity"]:
+                    db["summary"]["by_severity"][sev] = 0
+                db["summary"]["by_severity"][sev] += 1
+
+            self.log(f"Vulnerability database exported: {db['total_vulnerabilities']} entries", "success")
+            return {"success": True, "data": db}
+        except Exception as e:
+            self.log(f"Error generating vulnerability database: {str(e)}", "error")
+            return {"success": False, "error": str(e)}
+
+    # ═══════════════════════════════════════════════════════════
+    #  NEW METHOD 18: Email Report
+    # ═══════════════════════════════════════════════════════════
+
+    def send_report(self, report_path, recipients):
+        """Email report to recipients"""
+        self.log("Sending report via email...", "info")
+        try:
+            smtp_server = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
+            smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+            smtp_user = os.environ.get("SMTP_USER", "")
+            smtp_pass = os.environ.get("SMTP_PASS", "")
+
+            if not smtp_user:
+                self.log("SMTP credentials not configured", "warning")
+                return {"success": False, "error": "SMTP not configured. Set SMTP_SERVER, SMTP_USER, SMTP_PASS environment variables."}
+
+            msg = MIMEMultipart()
+            msg["From"] = smtp_user
+            msg["To"] = ", ".join(recipients) if isinstance(recipients, list) else recipients
+            msg["Subject"] = f"Pentest Report - {datetime.now().strftime('%Y-%m-%d')}"
+
+            body = """Hi,
+
+Please find attached the penetration testing report.
+
+Summary:
+- Report generated by BlackSentinel Strike v4.0
+- Generated at: {timestamp}
+
+Please review the report and let us know if you have any questions.
+
+Best regards,
+BlackSentinel Team
+""".format(timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+
+            msg.attach(MIMEText(body, "plain"))
+
+            if os.path.exists(report_path):
+                with open(report_path, "rb") as f:
+                    attachment = MIMEApplication(f.read())
+                    filename = os.path.basename(report_path)
+                    attachment.add_header("Content-Disposition", f"attachment; filename={filename}")
+                    msg.attach(attachment)
+
+            try:
+                server = smtplib.SMTP(smtp_server, smtp_port)
+                server.starttls()
+                server.login(smtp_user, smtp_pass)
+                recipients_list = recipients if isinstance(recipients, list) else [recipients]
+                server.sendmail(smtp_user, recipients_list, msg.as_string())
+                server.quit()
+                self.log(f"Report sent to {msg['To']}", "success")
+                return {"success": True, "recipients": recipients_list}
+            except Exception as email_error:
+                self.log(f"Email sending failed: {str(email_error)}", "warning")
+                return {"success": False, "error": str(email_error), "fallback": "Report saved locally"}
+        except Exception as e:
+            self.log(f"Error in send_report: {str(e)}", "error")
+            return {"success": False, "error": str(e)}
+
+    # ═══════════════════════════════════════════════════════════
+    #  NEW METHOD 19: Schedule Scan
+    # ═══════════════════════════════════════════════════════════
+
+    def schedule_scan(self, target, interval):
+        """Schedule recurring scans"""
+        self.log(f"Scheduling scan for {target}...", "info")
+        try:
+            interval_hours = {
+                "daily": 24,
+                "weekly": 168,
+                "monthly": 720,
+                "quarterly": 2160
+            }
+
+            hours = interval_hours.get(interval.lower(), 24)
+            schedule_entry = {
+                "id": len(self.scheduled_scans) + 1,
+                "target": target,
+                "interval": interval.lower(),
+                "interval_hours": hours,
+                "created_at": datetime.now().isoformat(),
+                "next_run": (datetime.now() + timedelta(hours=hours)).isoformat(),
+                "last_run": None,
+                "status": "scheduled",
+                "run_count": 0,
+                "scan_history": []
+            }
+
+            self.scheduled_scans.append(schedule_entry)
+
+            schedule_file = Path.home() / "hacks" / "reports" / "scan_schedule.json"
+            Path(schedule_file).parent.mkdir(parents=True, exist_ok=True)
+
+            try:
+                existing = []
+                if schedule_file.exists():
+                    with open(schedule_file, "r") as f:
+                        existing = json.load(f)
+                existing.append(schedule_entry)
+                with open(schedule_file, "w") as f:
+                    json.dump(existing, f, indent=2)
+            except Exception:
+                pass
+
+            self.log(f"Scan scheduled: {interval} for {target}", "success")
+            return {"success": True, "data": schedule_entry}
+        except Exception as e:
+            self.log(f"Error scheduling scan: {str(e)}", "error")
+            return {"success": False, "error": str(e)}
+
+    # ═══════════════════════════════════════════════════════════
+    #  NEW METHOD 20: Comprehensive Report (enhanced)
+    # ═══════════════════════════════════════════════════════════
+
+    def generate_report(self):
+        """Generate comprehensive report with all available data"""
+        self.log("Generating comprehensive report...", "info")
+        try:
+            report = {
+                "title": "BlackSentinel - Comprehensive Report",
+                "generated_at": datetime.now().isoformat(),
+                "version": "4.0",
+                "sections": {}
+            }
+
+            report["sections"]["executive_summary"] = self.generate_executive_summary(self.report_data).get("data", {})
+            report["sections"]["technical_findings"] = self.generate_technical_report(self.report_data).get("data", {})
+            report["sections"]["timeline"] = self.generate_timeline(self.report_data).get("data", {})
+            report["sections"]["network_topology"] = self.generate_network_diagram(self.report_data).get("data", {})
+            report["sections"]["vulnerability_db"] = self.generate_vulnerability_db(
+                report["sections"]["technical_findings"].get("sections", {}).get("exploitation", {}).get("successful", [])
+            ).get("data", {})
+
+            creds = self.report_data.get("credentials", [])
+            findings_for_matrix = []
+            if isinstance(creds, list):
+                for c in creds:
+                    findings_for_matrix.append({
+                        "name": f"Compromised credential: {c.get('username', 'N/A')}",
+                        "likelihood": "Certain",
+                        "impact": "Major",
+                        "description": f"Service: {c.get('service', 'N/A')}"
+                    })
+
+            report["sections"]["risk_matrix"] = self.generate_risk_matrix(findings_for_matrix).get("data", {})
+
+            report["sections"]["remediation_plan"] = self.generate_remediation_plan(
+                self.report_data.get("vulnerabilities", [])
+            ).get("data", {})
+
+            report["metadata"] = {
+                "generator": "BlackSentinel Strike",
+                "report_type": "comprehensive",
+                "total_sections": len(report["sections"]),
+                "checksum": hashlib.sha256(json.dumps(report, default=str).encode()).hexdigest()[:16]
+            }
+
+            self.log("Comprehensive report generated", "success")
+            return {"success": True, "data": report}
+        except Exception as e:
+            self.log(f"Error generating comprehensive report: {str(e)}", "error")
+            return {"success": False, "error": str(e)}

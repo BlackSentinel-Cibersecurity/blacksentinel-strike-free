@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+.pytest_cache/
+*.egg-info/
+.venv/
+venv/
+
+# runtime data — this tool stores real scan results/credentials here;
+# must never be versioned
+data/
+reports/*.pdf
+reports/*.json
+*.db
+*.sqlite3
+
+# env — never commit real secrets, only .env.example
+.env
+.env.local
+.env.production
+
+# OS / external-drive artifacts
+.DS_Store
+._*
+*.log
