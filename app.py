@@ -48,6 +48,7 @@ from network_attacks import NetworkAttackModule  # noqa: E402
 from wireless import WirelessModule  # noqa: E402
 from forensic import ForensicModule  # noqa: E402
 from social_engineering import SocialEngineeringModule  # noqa: E402
+from orchestrator import EngagementOrchestrator, REQUIRED_CONFIRM_PHRASE  # noqa: E402
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
@@ -214,6 +215,7 @@ class App(ctk.CTk):
         modules = [
             ("dashboard",     "Dashboard"),
             ("war exploit",   "War Exploit"),
+            ("warroom",       "War Room"),
             ("netscan",       "Network Scan"),
             ("portscan",      "Port Scanner"),
             ("webexploit",    "Web Explorer"),
@@ -539,6 +541,7 @@ class App(ctk.CTk):
             "vault":      self._build_vault,
             "dashboard":   self._build_dashboard,
             "war exploit": self._build_war_exploit,
+            "warroom":     self._build_warroom,
             "netscan":     self._build_netscan,
             "portscan":    self._build_portscan,
             "webexploit":  self._build_webexploit,
@@ -2961,6 +2964,100 @@ class App(ctk.CTk):
     def _se_report(self):
         self._run_async(self._se_out, "[*] Generating social-engineering report...",
                         self._se_engine.generate_report)
+
+    # ================================================================ WAR ROOM
+    def _build_warroom(self):
+        f = self._page_frame("warroom")
+        f.grid_columnconfigure(0, weight=1)
+        f.grid_rowconfigure(4, weight=1)
+        self._title(f, "War Room").grid(row=0, column=0, sticky="w", padx=24, pady=(20, 0))
+        self._subtitle(f, "One-command, scope-gated engagement + audited report").grid(
+            row=1, column=0, sticky="w", padx=24, pady=(0, 12))
+
+        gate = self._card(f, "Authorization Gate (required)", 2, 0)
+        g1 = ctk.CTkFrame(gate, fg_color="transparent")
+        g1.pack(fill="x", padx=14, pady=8)
+        self._wr_targets = self._input(g1, "Targets (space/comma separated) - must be in an active scope")
+        self._wr_targets.pack(fill="x")
+        g2 = ctk.CTkFrame(gate, fg_color="transparent")
+        g2.pack(fill="x", padx=14, pady=(0, 8))
+        self._wr_operator = self._input(g2, "Operator (your name)")
+        self._wr_operator.pack(side="left", padx=(0, 8), expand=True, fill="x")
+        self._wr_authref = self._input(g2, "Authorization ref (contract/ROE id)")
+        self._wr_authref.pack(side="left", expand=True, fill="x")
+        g3 = ctk.CTkFrame(gate, fg_color="transparent")
+        g3.pack(fill="x", padx=14, pady=(0, 8))
+        self._wr_confirm = self._input(g3, f'Type exactly: {REQUIRED_CONFIRM_PHRASE}')
+        self._wr_confirm.pack(side="left", padx=(0, 8), expand=True, fill="x")
+
+        ctrl = self._card(f, "Engagement", 3, 0)
+        c1 = ctk.CTkFrame(ctrl, fg_color="transparent")
+        c1.pack(fill="x", padx=14, pady=8)
+        self._wr_dryrun = ctk.CTkCheckBox(c1, text="Dry-run (plan only, no live attacks)",
+                                          onvalue=1, offvalue=0,
+                                          fg_color="#cc3300", hover_color="#ff5500",
+                                          text_color="#cccccc",
+                                          font=ctk.CTkFont("Consolas", 10))
+        self._wr_dryrun.select()  # default ON
+        self._wr_dryrun.pack(side="left", padx=(0, 12))
+        self._btn(c1, "Run Engagement", "red", self._wr_run).pack(side="left", padx=(0, 6))
+        self._btn(c1, "Rollback Artifacts", "gray", self._wr_rollback).pack(side="left", padx=(0, 6))
+        self._btn(c1, "Save Report", "gray", self._wr_report).pack(side="left")
+
+        res_card = self._card(f, "Engagement Log", 4, 0)
+        self._wr_out = self._textbox(res_card)
+        self._wr_out.pack(fill="both", expand=True, padx=8, pady=8)
+        self._wr_orc = None
+        self._wr_engagement = None
+
+    def _wr_run(self):
+        targets = self._wr_targets.get().strip()
+        operator = self._wr_operator.get().strip()
+        authref = self._wr_authref.get().strip()
+        confirm = self._wr_confirm.get().strip()
+        dry = bool(self._wr_dryrun.get())
+        if not targets:
+            self._log("[!] No targets specified", self._wr_out)
+            return
+        if not dry:
+            self._log("[!] LIVE mode armed - engagement will execute real attacks "
+                      "against authorized, in-scope targets only.", self._wr_out)
+        self._wr_orc = EngagementOrchestrator(
+            callback=lambda m: _log_queue.put((self._wr_out, m)))
+
+        def _run():
+            try:
+                eng = self._wr_orc.run(targets, operator, authref, confirm, dry_run=dry)
+                self._wr_engagement = eng
+                _log_queue.put((self._wr_out,
+                                f"[+] Engagement {eng['engagement_id']} -> {eng['status']}"))
+                if eng.get("refused"):
+                    _log_queue.put((self._wr_out, f"[BLOCKED] {eng['refused']}"))
+            except Exception as e:
+                _log_queue.put((self._wr_out, f"[!] Error: {e}"))
+        threading.Thread(target=_run, daemon=True).start()
+
+    def _wr_rollback(self):
+        if not self._wr_orc:
+            self._log("[!] No engagement to roll back yet", self._wr_out)
+            return
+        self._run_async(self._wr_out, "[*] Rolling back operator-planted artifacts...",
+                        self._wr_orc.rollback)
+
+    def _wr_report(self):
+        if not self._wr_orc or not self._wr_engagement:
+            self._log("[!] Run an engagement first", self._wr_out)
+            return
+
+        def _save():
+            md = self._wr_orc.build_report(self._wr_engagement)
+            from pathlib import Path as _P
+            rep_dir = _P.home() / ".blacksentinel-strike" / "vault" / "reports"
+            rep_dir.mkdir(parents=True, exist_ok=True)
+            out = rep_dir / f"engagement_{self._wr_engagement['engagement_id']}.md"
+            out.write_text(md, encoding="utf-8")
+            return f"Report saved: {out}"
+        self._run_async(self._wr_out, "[*] Building audited engagement report...", _save)
 
     # ------------------------------------------------------------------ close
     def _on_close(self):
