@@ -49,6 +49,7 @@ from wireless import WirelessModule  # noqa: E402
 from forensic import ForensicModule  # noqa: E402
 from social_engineering import SocialEngineeringModule  # noqa: E402
 from orchestrator import EngagementOrchestrator, REQUIRED_CONFIRM_PHRASE  # noqa: E402
+from ai_redteam import AIRedTeam, build_http_sender  # noqa: E402
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
@@ -281,6 +282,7 @@ class App(ctk.CTk):
             ("wireless",     "Wireless Kit"),
             ("forensic",     "Forensic Kit"),
             ("social_eng",   "Social Eng Kit"),
+            ("ai_redteam",   "AI Red-Team"),
         ]
         for key, label in arsenal_modules:
             b = ctk.CTkButton(nav_scroll, text=f"  {label}", anchor="w", height=34,
@@ -569,6 +571,7 @@ class App(ctk.CTk):
             "wireless":    self._build_wireless,
             "forensic":    self._build_forensic,
             "social_eng":  self._build_social_eng,
+            "ai_redteam":  self._build_ai_redteam,
         }
         builders.get(key, lambda: None)()
 
@@ -2964,6 +2967,45 @@ class App(ctk.CTk):
     def _se_report(self):
         self._run_async(self._se_out, "[*] Generating social-engineering report...",
                         self._se_engine.generate_report)
+
+    # ================================================================ AI RED-TEAM
+    def _build_ai_redteam(self):
+        f = self._page_frame("ai_redteam")
+        f.grid_columnconfigure(0, weight=1)
+        f.grid_rowconfigure(3, weight=1)
+        self._title(f, "AI Red-Team").grid(row=0, column=0, sticky="w", padx=24, pady=(20, 0))
+        self._subtitle(f, "LLM resilience testing - OWASP LLM Top-10 (authorized endpoints only)").grid(
+            row=1, column=0, sticky="w", padx=24, pady=(0, 12))
+        opts = self._card(f, "Target Endpoint", 2, 0)
+        row1 = ctk.CTkFrame(opts, fg_color="transparent")
+        row1.pack(fill="x", padx=14, pady=8)
+        self._ai_url = self._input(row1, "Authorized chat API URL (POST JSON {prompt})")
+        self._ai_url.pack(side="left", padx=(0, 8), expand=True, fill="x")
+        row2 = ctk.CTkFrame(opts, fg_color="transparent")
+        row2.pack(fill="x", padx=14, pady=(0, 8))
+        self._ai_respkey = self._input(row2, "Response JSON key (optional, e.g. reply)")
+        self._ai_respkey.pack(side="left", padx=(0, 8), expand=True, fill="x")
+        self._btn(row2, "Test Endpoint", "red", self._ai_run).pack(side="left", padx=(0, 6))
+        self._btn(row2, "Report", "gray", self._ai_report).pack(side="left")
+        res_card = self._card(f, "Results", 3, 0)
+        self._ai_out = self._textbox(res_card)
+        self._ai_out.pack(fill="both", expand=True, padx=8, pady=8)
+        self._ai_engine = AIRedTeam(callback=lambda m: _log_queue.put((self._ai_out, m)))
+
+    def _ai_run(self):
+        url = self._ai_url.get().strip()
+        if not url:
+            self._log("[!] No endpoint URL specified", self._ai_out)
+            return
+        respkey = self._ai_respkey.get().strip()
+        response_path = [respkey] if respkey else None
+        sender = build_http_sender(url, response_path=response_path)
+        self._run_async(self._ai_out, f"[*] Red-teaming LLM endpoint {url}...",
+                        lambda: self._ai_engine.test_endpoint(sender))
+
+    def _ai_report(self):
+        self._run_async(self._ai_out, "[*] Generating AI red-team report...",
+                        self._ai_engine.generate_report)
 
     # ================================================================ WAR ROOM
     def _build_warroom(self):
