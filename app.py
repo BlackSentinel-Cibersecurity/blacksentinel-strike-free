@@ -43,6 +43,11 @@ from forensic_adv import ForensicAdvanced  # noqa: E402
 from social_adv import SocialEngineeringAdvanced  # noqa: E402
 from post_exp_adv import PostExploitationAdvanced  # noqa: E402
 from recon_adv import ReconAdvanced  # noqa: E402
+from bruteforce import BruteForceModule  # noqa: E402
+from network_attacks import NetworkAttackModule  # noqa: E402
+from wireless import WirelessModule  # noqa: E402
+from forensic import ForensicModule  # noqa: E402
+from social_engineering import SocialEngineeringModule  # noqa: E402
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
@@ -260,6 +265,30 @@ class App(ctk.CTk):
             b.pack(fill="x", padx=4, pady=1)
             self._nav_btns[key] = b
 
+        # separator
+        sep3 = ctk.CTkFrame(nav_scroll, height=1, fg_color="#222222", corner_radius=0)
+        sep3.pack(fill="x", padx=8, pady=(8, 4))
+        ctk.CTkLabel(nav_scroll, text="ARSENAL",
+                     font=ctk.CTkFont("Consolas", 8, "bold"),
+                     text_color="#ff8c00").pack(anchor="w", padx=8, pady=(0, 4))
+
+        # arsenal nav buttons (previously-orphaned core modules)
+        arsenal_modules = [
+            ("bruteforce",   "Brute Force"),
+            ("net_attacks",  "Network Attacks"),
+            ("wireless",     "Wireless Kit"),
+            ("forensic",     "Forensic Kit"),
+            ("social_eng",   "Social Eng Kit"),
+        ]
+        for key, label in arsenal_modules:
+            b = ctk.CTkButton(nav_scroll, text=f"  {label}", anchor="w", height=34,
+                              corner_radius=6, fg_color="transparent",
+                              text_color="#ff8c00", hover_color=C_HOVER,
+                              font=ctk.CTkFont("Consolas", 11),
+                              command=lambda k=key: self._show_page(k))
+            b.pack(fill="x", padx=4, pady=1)
+            self._nav_btns[key] = b
+
         # bottom spacer to allow scrolling past last item
         ctk.CTkFrame(nav_scroll, fg_color="transparent", height=20).pack(fill="x")
 
@@ -340,6 +369,18 @@ class App(ctk.CTk):
     # ------------------------------------------------------------------ log
     def _log(self, msg, target_box=None):
         _log_queue.put((target_box, msg))
+
+    def _run_async(self, out, start_msg, fn):
+        """Run a zero-arg callable in a daemon thread, streaming result to `out`."""
+        self._log(start_msg, out)
+
+        def _work():
+            try:
+                r = fn()
+                _log_queue.put((out, f"[+] {r}"))
+            except Exception as e:  # noqa: BLE001
+                _log_queue.put((out, f"[!] Error: {e}"))
+        threading.Thread(target=_work, daemon=True).start()
 
     def _drain_log(self):
         try:
@@ -520,6 +561,11 @@ class App(ctk.CTk):
             "social_adv":  self._build_social_adv,
             "post_adv":    self._build_post_adv,
             "recon_adv":   self._build_recon_adv,
+            "bruteforce":  self._build_bruteforce,
+            "net_attacks": self._build_net_attacks,
+            "wireless":    self._build_wireless,
+            "forensic":    self._build_forensic,
+            "social_eng":  self._build_social_eng,
         }
         builders.get(key, lambda: None)()
 
@@ -2685,6 +2731,236 @@ class App(ctk.CTk):
             except Exception as e:
                 _log_queue.put((self._ra_out, f"[!] Error: {e}"))
         threading.Thread(target=_run, daemon=True).start()
+
+    # ================================================================ BRUTE FORCE
+    def _build_bruteforce(self):
+        f = self._page_frame("bruteforce")
+        f.grid_columnconfigure(0, weight=1)
+        f.grid_rowconfigure(3, weight=1)
+        self._title(f, "Brute Force").grid(row=0, column=0, sticky="w", padx=24, pady=(20, 0))
+        self._subtitle(f, "Multi-service credential attacks (SSH/FTP/HTTP/SMB/DB/mail/...)").grid(
+            row=1, column=0, sticky="w", padx=24, pady=(0, 12))
+        opts = self._card(f, "Attack Options", 2, 0)
+        row1 = ctk.CTkFrame(opts, fg_color="transparent")
+        row1.pack(fill="x", padx=14, pady=8)
+        self._bf_target = self._input(row1, "Target IP/Hostname")
+        self._bf_target.pack(side="left", padx=(0, 8), expand=True, fill="x")
+        self._bf_proto = self._combo(row1, [
+            "SSH", "FTP", "HTTP", "SMB", "MySQL", "RDP",
+            "Redis", "MongoDB", "Telnet", "SMTP", "VNC", "SNMP"])
+        self._bf_proto.set("SSH")
+        self._bf_proto.pack(side="left", padx=(0, 8))
+        row2 = ctk.CTkFrame(opts, fg_color="transparent")
+        row2.pack(fill="x", padx=14, pady=(0, 8))
+        self._bf_user = self._input(row2, "Username (if required by service)")
+        self._bf_user.pack(side="left", padx=(0, 8), expand=True, fill="x")
+        self._btn(row2, "Attack", "red", self._bf_run).pack(side="left", padx=(0, 6))
+        self._btn(row2, "Report", "gray", self._bf_report).pack(side="left")
+        res_card = self._card(f, "Results", 3, 0)
+        self._bf_out = self._textbox(res_card)
+        self._bf_out.pack(fill="both", expand=True, padx=8, pady=8)
+        self._bf_engine = BruteForceModule(callback=lambda m: _log_queue.put((self._bf_out, m)))
+
+    def _bf_run(self):
+        target = self._bf_target.get().strip()
+        user = self._bf_user.get().strip()
+        proto = self._bf_proto.get()
+        if not target:
+            self._log("[!] No target specified", self._bf_out)
+            return
+        needs_user = {"SSH", "FTP", "HTTP", "SMB", "MySQL", "RDP"}
+        dispatch = {
+            "SSH": lambda: self._bf_engine.ssh_bruteforce(target, user),
+            "FTP": lambda: self._bf_engine.ftp_bruteforce(target, user),
+            "HTTP": lambda: self._bf_engine.http_bruteforce(target, user),
+            "SMB": lambda: self._bf_engine.smb_bruteforce(target, user),
+            "MySQL": lambda: self._bf_engine.mysql_bruteforce(target, user),
+            "RDP": lambda: self._bf_engine.rdp_bruteforce(target, user),
+            "Redis": lambda: self._bf_engine.redis_bruteforce(target),
+            "MongoDB": lambda: self._bf_engine.mongodb_bruteforce(target),
+            "Telnet": lambda: self._bf_engine.telnet_bruteforce(target),
+            "SMTP": lambda: self._bf_engine.smtp_bruteforce(target),
+            "VNC": lambda: self._bf_engine.vnc_bruteforce(target),
+            "SNMP": lambda: self._bf_engine.snmp_bruteforce(target),
+        }
+        if proto in needs_user and not user:
+            self._log(f"[!] {proto} requires a username", self._bf_out)
+            return
+        fn = dispatch.get(proto, dispatch["SSH"])
+        self._run_async(self._bf_out, f"[*] {proto} brute-force on {target}...", fn)
+
+    def _bf_report(self):
+        self._run_async(self._bf_out, "[*] Generating brute-force report...",
+                        self._bf_engine.generate_report)
+
+    # ================================================================ NETWORK ATTACKS
+    def _build_net_attacks(self):
+        f = self._page_frame("net_attacks")
+        f.grid_columnconfigure(0, weight=1)
+        f.grid_rowconfigure(3, weight=1)
+        self._title(f, "Network Attacks").grid(row=0, column=0, sticky="w", padx=24, pady=(20, 0))
+        self._subtitle(f, "ARP/DNS spoofing, MITM, rogue services (layer 2/3)").grid(
+            row=1, column=0, sticky="w", padx=24, pady=(0, 12))
+        opts = self._card(f, "Target", 2, 0)
+        row1 = ctk.CTkFrame(opts, fg_color="transparent")
+        row1.pack(fill="x", padx=14, pady=8)
+        self._na_target = self._input(row1, "Target IP")
+        self._na_target.pack(side="left", padx=(0, 8), expand=True, fill="x")
+        self._na_gw = self._input(row1, "Gateway IP")
+        self._na_gw.pack(side="left", padx=(0, 8), expand=True, fill="x")
+        row2 = ctk.CTkFrame(opts, fg_color="transparent")
+        row2.pack(fill="x", padx=14, pady=(0, 8))
+        self._btn(row2, "ARP Spoof", "red", self._na_arp).pack(side="left", padx=(0, 6))
+        self._btn(row2, "MITM", "red", self._na_mitm).pack(side="left", padx=(0, 6))
+        self._btn(row2, "Report", "gray", self._na_report).pack(side="left")
+        res_card = self._card(f, "Results", 3, 0)
+        self._na_out = self._textbox(res_card)
+        self._na_out.pack(fill="both", expand=True, padx=8, pady=8)
+        self._na_engine = NetworkAttackModule(callback=lambda m: _log_queue.put((self._na_out, m)))
+
+    def _na_arp(self):
+        t, g = self._na_target.get().strip(), self._na_gw.get().strip()
+        if not t or not g:
+            self._log("[!] Target and gateway IPs are required", self._na_out)
+            return
+        self._run_async(self._na_out, f"[*] ARP spoofing {t} <-> {g}...",
+                        lambda: self._na_engine.arp_spoofing(t, g))
+
+    def _na_mitm(self):
+        t, g = self._na_target.get().strip(), self._na_gw.get().strip()
+        if not t or not g:
+            self._log("[!] Target and gateway IPs are required", self._na_out)
+            return
+        self._run_async(self._na_out, f"[*] MITM {t} via {g}...",
+                        lambda: self._na_engine.mitm_attack(t, g))
+
+    def _na_report(self):
+        self._run_async(self._na_out, "[*] Generating network-attack report...",
+                        self._na_engine.generate_report)
+
+    # ================================================================ WIRELESS KIT
+    def _build_wireless(self):
+        f = self._page_frame("wireless")
+        f.grid_columnconfigure(0, weight=1)
+        f.grid_rowconfigure(3, weight=1)
+        self._title(f, "Wireless Kit").grid(row=0, column=0, sticky="w", padx=24, pady=(20, 0))
+        self._subtitle(f, "Wi-Fi scan, monitor mode, handshake capture").grid(
+            row=1, column=0, sticky="w", padx=24, pady=(0, 12))
+        opts = self._card(f, "Interface", 2, 0)
+        row1 = ctk.CTkFrame(opts, fg_color="transparent")
+        row1.pack(fill="x", padx=14, pady=8)
+        self._wl_iface = self._input(row1, "Interface (e.g. wlan0)")
+        self._wl_iface.pack(side="left", padx=(0, 8), expand=True, fill="x")
+        self._btn(row1, "Monitor Mode", "red", self._wl_monitor).pack(side="left", padx=(0, 6))
+        self._btn(row1, "Scan", "red", self._wl_scan).pack(side="left", padx=(0, 6))
+        self._btn(row1, "Report", "gray", self._wl_report).pack(side="left")
+        res_card = self._card(f, "Results", 3, 0)
+        self._wl_out = self._textbox(res_card)
+        self._wl_out.pack(fill="both", expand=True, padx=8, pady=8)
+        self._wl_engine = WirelessModule(callback=lambda m: _log_queue.put((self._wl_out, m)))
+
+    def _wl_monitor(self):
+        iface = self._wl_iface.get().strip() or "wlan0"
+        self._run_async(self._wl_out, f"[*] Enabling monitor mode on {iface}...",
+                        lambda: self._wl_engine.enable_monitor_mode(iface))
+
+    def _wl_scan(self):
+        iface = self._wl_iface.get().strip() or "wlan0mon"
+        self._run_async(self._wl_out, f"[*] Scanning networks on {iface}...",
+                        lambda: self._wl_engine.scan_networks(iface))
+
+    def _wl_report(self):
+        self._run_async(self._wl_out, "[*] Generating wireless report...",
+                        self._wl_engine.generate_report)
+
+    # ================================================================ FORENSIC KIT
+    def _build_forensic(self):
+        f = self._page_frame("forensic")
+        f.grid_columnconfigure(0, weight=1)
+        f.grid_rowconfigure(3, weight=1)
+        self._title(f, "Forensic Kit").grid(row=0, column=0, sticky="w", padx=24, pady=(20, 0))
+        self._subtitle(f, "Metadata, timeline, log analysis, evidence handling").grid(
+            row=1, column=0, sticky="w", padx=24, pady=(0, 12))
+        opts = self._card(f, "Evidence Path", 2, 0)
+        row1 = ctk.CTkFrame(opts, fg_color="transparent")
+        row1.pack(fill="x", padx=14, pady=8)
+        self._fo_path = self._input(row1, "File / image / log path")
+        self._fo_path.pack(side="left", padx=(0, 8), expand=True, fill="x")
+        row2 = ctk.CTkFrame(opts, fg_color="transparent")
+        row2.pack(fill="x", padx=14, pady=(0, 8))
+        self._btn(row2, "Metadata", "red", self._fo_meta).pack(side="left", padx=(0, 6))
+        self._btn(row2, "Timeline", "red", self._fo_timeline).pack(side="left", padx=(0, 6))
+        self._btn(row2, "Log Analysis", "red", self._fo_logs).pack(side="left", padx=(0, 6))
+        self._btn(row2, "Report", "gray", self._fo_report).pack(side="left")
+        res_card = self._card(f, "Results", 3, 0)
+        self._fo_out = self._textbox(res_card)
+        self._fo_out.pack(fill="both", expand=True, padx=8, pady=8)
+        self._fo_engine = ForensicModule(callback=lambda m: _log_queue.put((self._fo_out, m)))
+
+    def _fo_meta(self):
+        p = self._fo_path.get().strip()
+        if not p:
+            self._log("[!] No path specified", self._fo_out)
+            return
+        self._run_async(self._fo_out, f"[*] Extracting metadata from {p}...",
+                        lambda: self._fo_engine.metadata_extraction(p))
+
+    def _fo_timeline(self):
+        p = self._fo_path.get().strip()
+        if not p:
+            self._log("[!] No path specified", self._fo_out)
+            return
+        self._run_async(self._fo_out, f"[*] Building timeline for {p}...",
+                        lambda: self._fo_engine.timeline_analysis(p))
+
+    def _fo_logs(self):
+        p = self._fo_path.get().strip()
+        if not p:
+            self._log("[!] No path specified", self._fo_out)
+            return
+        self._run_async(self._fo_out, f"[*] Analyzing log {p}...",
+                        lambda: self._fo_engine.log_analysis(p))
+
+    def _fo_report(self):
+        self._run_async(self._fo_out, "[*] Generating forensic report...",
+                        self._fo_engine.generate_report)
+
+    # ================================================================ SOCIAL ENG KIT
+    def _build_social_eng(self):
+        f = self._page_frame("social_eng")
+        f.grid_columnconfigure(0, weight=1)
+        f.grid_rowconfigure(3, weight=1)
+        self._title(f, "Social Eng Kit").grid(row=0, column=0, sticky="w", padx=24, pady=(20, 0))
+        self._subtitle(f, "Phishing simulation & awareness testing (authorized only)").grid(
+            row=1, column=0, sticky="w", padx=24, pady=(0, 12))
+        opts = self._card(f, "Target", 2, 0)
+        row1 = ctk.CTkFrame(opts, fg_color="transparent")
+        row1.pack(fill="x", padx=14, pady=8)
+        self._se_name = self._input(row1, "Target name")
+        self._se_name.pack(side="left", padx=(0, 8), expand=True, fill="x")
+        self._se_email = self._input(row1, "Target email")
+        self._se_email.pack(side="left", padx=(0, 8), expand=True, fill="x")
+        row2 = ctk.CTkFrame(opts, fg_color="transparent")
+        row2.pack(fill="x", padx=14, pady=(0, 8))
+        self._btn(row2, "Phishing Email", "red", self._se_phish).pack(side="left", padx=(0, 6))
+        self._btn(row2, "Report", "gray", self._se_report).pack(side="left")
+        res_card = self._card(f, "Results", 3, 0)
+        self._se_out = self._textbox(res_card)
+        self._se_out.pack(fill="both", expand=True, padx=8, pady=8)
+        self._se_engine = SocialEngineeringModule(callback=lambda m: _log_queue.put((self._se_out, m)))
+
+    def _se_phish(self):
+        name = self._se_name.get().strip()
+        email = self._se_email.get().strip()
+        if not name or not email:
+            self._log("[!] Target name and email are required", self._se_out)
+            return
+        self._run_async(self._se_out, f"[*] Building phishing-simulation email for {email}...",
+                        lambda: self._se_engine.phishing_email_create(name, email))
+
+    def _se_report(self):
+        self._run_async(self._se_out, "[*] Generating social-engineering report...",
+                        self._se_engine.generate_report)
 
     # ------------------------------------------------------------------ close
     def _on_close(self):
