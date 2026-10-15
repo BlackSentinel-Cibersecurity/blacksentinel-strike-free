@@ -9,7 +9,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="blacksentinel-strike",
-    version="4.0.0",
+    version="4.1.0",
     author="BlackSentinel Strike",
     description="Advanced Penetration Testing GUI Framework - BlackSentinel Strike",
     long_description=open("README.md").read(),

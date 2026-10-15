@@ -191,7 +191,7 @@ class App(ctk.CTk):
         # version badge
         ver_frame = ctk.CTkFrame(sb, fg_color="#1a0d00", corner_radius=4)
         ver_frame.pack(fill="x", padx=20, pady=(4, 12))
-        ctk.CTkLabel(ver_frame, text="v4.0  |  AES-256",
+        ctk.CTkLabel(ver_frame, text="v4.1  |  AES-256",
                      font=ctk.CTkFont("Consolas", 8),
                      text_color="#cc6600").pack(padx=8, pady=3)
 
@@ -2147,7 +2147,7 @@ class App(ctk.CTk):
         t = self._textbox(card)
         t.pack(fill="both", expand=True, padx=8, pady=8)
         help_text = (
-            "BlackSentinel Strike v4.0\n"
+            "BlackSentinel Strike v4.1\n"
             "==========================\n\n"
             "Modules:\n"
             "[*] Dashboard     - System overview and quick access\n"

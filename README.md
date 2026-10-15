@@ -14,7 +14,7 @@
 > [Acceptable Use Policy](https://blacksentinel.tech/acceptable-use/). The authors
 > accept no liability for misuse.
 
-# BlackSentinel Pentest Suite v4.0
+# BlackSentinel Pentest Suite v4.1
 
 **Professional Penetration Testing Platform with AES-256-CBC Encrypted Storage**
 
@@ -54,6 +54,8 @@ BlackSentinel Pentest Suite is an all-in-one penetration testing GUI application
 | **Post-Exploitation** | Enumerate compromised systems (users, processes, network connections, password hashes) |
 | **Password Attacks** | Brute-force SSH, FTP, HTTP, SMB, RDP, MySQL using hydra with configurable wordlists |
 | **Reporting** | Generate structured penetration test reports with executive summary, methodology, findings, and recommendations |
+| **War Room** | Run a full multi-phase engagement from one command — gated by operator identity, an authorization reference and a confirmation phrase, with per-target scope enforcement, dry-run by default, an operator-artifact rollback ledger, and a single audited engagement report |
+| **AI / LLM Red-Team** | Test authorized chat endpoints for resilience against the OWASP Top-10 for LLM Applications (prompt injection, system-prompt leakage, data exfiltration, jailbreak) and score their guardrails |
 
 ### How Does It Work?
 
@@ -77,7 +79,7 @@ Authorized penetration testers, red team operators, and security auditors who ne
 ```
 blacksentinel-strike/
 ├── app.py                    # Main GUI application (1567 lines)
-├── VERSION                   # Current version (4.0.0)
+├── VERSION                   # Current version (4.1.0)
 ├── requirements.txt          # Python dependencies
 ├── deploy.sh                 # Automated deployment script
 ├── Dockerfile                # Docker deployment
@@ -98,10 +100,18 @@ blacksentinel-strike/
     ├── wireless.py           # Wireless network attacks
     ├── network_attacks.py    # Network-level attacks
     ├── social_engineering.py # Social engineering tools
+    ├── orchestrator.py       # War Room: scope-gated engagement + audited report
+    ├── ai_redteam.py         # AI/LLM resilience testing (OWASP LLM Top-10)
     ├── reports.py            # Report generation
     ├── themes.py             # UI theme definitions
     └── utils.py              # Shared utilities
 ```
+
+> Note: the module list above is abbreviated; the suite ships 39 modules,
+> including advanced variants (`*_adv.py`), cloud/container, AD, rootkit and
+> honeypot tooling. The **ARSENAL** sidebar section surfaces the core
+> brute-force, network-attack, wireless, forensic and social-engineering
+> engines directly in the GUI.
 
 ### Data Flow
 
@@ -498,7 +508,7 @@ All rights reserved. This software is proprietary and confidential.
 
 ---
 
-**BlackSentinel Pentest Suite v4.0**
+**BlackSentinel Pentest Suite v4.1**
 *Developed by BlackSentinel Strike*
 
 ---

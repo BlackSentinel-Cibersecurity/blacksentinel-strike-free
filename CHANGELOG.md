@@ -5,6 +5,30 @@ All notable changes to BlackSentinel Strike will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.0] - 2026-10-15
+
+### Added
+- **War Room**: one-command, scope-gated engagement orchestrator
+  (`modules/orchestrator.py`) with a hard authorization gate (operator +
+  authorization reference + confirmation phrase), per-target scope
+  enforcement, refusal of indiscriminate targets, dry-run by default, an
+  operator-artifact rollback ledger, and a full audited engagement report.
+- **AI / LLM Red-Team** module (`modules/ai_redteam.py`): canary-based
+  resilience testing of authorized chat endpoints against the OWASP Top-10
+  for LLM Applications (prompt injection, system-prompt leakage, data
+  exfiltration, jailbreak, excessive agency), with a resilience score.
+- **ARSENAL** sidebar section exposing previously-unreachable core modules in
+  the GUI: Brute Force (12 services), Network Attacks, Wireless Kit, Forensic
+  Kit, Social Eng Kit.
+- 22 new headless tests for the orchestrator and AI red-team harness.
+
+### Changed
+- Added a shared `_run_async` GUI helper to remove thread boilerplate.
+- Bumped version to 4.1.0 across all version strings.
+
+### Fixed
+- Removed 54 unused imports (F401) across modules and tests.
+
 ## [4.0.0] - 2025-01-01
 
 ### Added
