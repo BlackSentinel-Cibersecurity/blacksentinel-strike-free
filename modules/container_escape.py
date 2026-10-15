@@ -8,12 +8,9 @@ Covers Docker, Kubernetes, and generic container breakout scenarios.
 """
 
 import subprocess
-import os
 import sys
 import json
-import shlex
-import tempfile
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Dict, Any, List
 
 
 class ContainerEscape:

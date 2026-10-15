@@ -1,7 +1,4 @@
 import sys
-import os
-import platform
-import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))

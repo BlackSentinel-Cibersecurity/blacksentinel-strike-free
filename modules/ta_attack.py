@@ -9,9 +9,6 @@ All 15 tactics with mapped techniques.
 For authorized security testing only.
 """
 import subprocess
-import json
-import os
-from datetime import datetime
 
 
 class MITREAttack:

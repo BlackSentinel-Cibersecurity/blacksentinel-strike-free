@@ -40,7 +40,7 @@ REQUIRED_CONFIRM_PHRASE = "I HAVE WRITTEN AUTHORIZATION"
 
 # Targets that are never acceptable -- they imply indiscriminate scope.
 FORBIDDEN_TARGETS = {
-    "0.0.0.0", "0.0.0.0/0", "::", "::/0", "*", "any", "all",
+    "0.0.0.0", "0.0.0.0/0", "::", "::/0", "*", "any", "all",  # nosec B104 - deny-list, not a bind
     "0/0", "internet", "everything",
 }
 

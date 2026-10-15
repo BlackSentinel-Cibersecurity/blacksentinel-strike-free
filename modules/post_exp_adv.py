@@ -5,13 +5,7 @@ Post-Exploitation Advanced Module
 """
 
 import subprocess
-import os
 import platform
-import json
-import base64
-import socket
-import struct
-from datetime import datetime
 
 
 class PostExploitationAdvanced:

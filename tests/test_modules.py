@@ -1,5 +1,4 @@
 import sys
-import pytest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -27,7 +26,7 @@ def test_import_all_modules():
 
 
 def test_war_exploit_has_vuln_database():
-    from modules.war_exploit import WarExploit, VULN_DATABASE
+    from modules.war_exploit import VULN_DATABASE
     assert isinstance(VULN_DATABASE, dict)
     assert len(VULN_DATABASE) > 50
     for name, vuln in VULN_DATABASE.items():

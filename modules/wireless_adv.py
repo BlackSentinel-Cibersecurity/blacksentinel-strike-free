@@ -5,11 +5,6 @@ Advanced wireless penetration testing capabilities for WiFi, Bluetooth, RF, and 
 """
 
 import subprocess
-import os
-import re
-import time
-import json
-from typing import Optional, Dict, List, Tuple
 
 
 class WirelessAdvanced:

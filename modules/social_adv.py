@@ -11,9 +11,6 @@ Requires written authorization before execution.
 """
 import subprocess
 import json
-import os
-import time
-from datetime import datetime
 
 
 class SocialEngineeringAdvanced:

@@ -11,10 +11,8 @@ import socket
 import time
 import re
 import os
-import platform
 import struct
 import hashlib
-from datetime import datetime
 
 
 class HoneypotDetection:

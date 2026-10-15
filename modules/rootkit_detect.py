@@ -8,9 +8,6 @@ Copyright (c) 2024-2025 BlackSentinel Strike - All Rights Reserved
 
 import subprocess
 import os
-import re
-import hashlib
-import time
 import shutil
 import glob
 from datetime import datetime

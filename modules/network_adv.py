@@ -10,10 +10,6 @@ wireless network security testing.
 For authorized security testing only.
 """
 import subprocess
-import json
-import os
-import time
-from datetime import datetime
 
 
 class NetworkAdvanced:

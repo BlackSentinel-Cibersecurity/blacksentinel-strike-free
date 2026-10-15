@@ -10,7 +10,6 @@ import subprocess
 import json
 import re
 import shutil
-from datetime import datetime
 
 
 def _require_tool(name):
