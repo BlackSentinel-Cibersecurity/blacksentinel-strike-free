@@ -181,3 +181,101 @@ def test_report_json_roundtrips():
     payload = json.loads(orc.build_report(r, fmt="json"))
     assert payload["engagement"]["engagement_id"] == orc.engagement_id
     assert "audit_trail" in payload
+
+
+# ---------------------------------------------------------- built-in phase wiring
+from modules import orchestrator as _orch  # noqa: E402
+
+
+class RecordingEngine:
+    """Fake engine that records calls and returns a marker, for phase tests."""
+
+    def __init__(self, **kwargs):
+        self.calls = []
+
+    def __getattr__(self, name):
+        def _f(*args, **kwargs):
+            self.calls.append((name, args))
+            return f"{name}-ok"
+        return _f
+
+
+def test_registry_covers_all_default_phases():
+    for phase in _orch.DEFAULT_PHASES:
+        assert phase in _orch.BUILTIN_PHASE_RUNNERS
+        assert callable(_orch.BUILTIN_PHASE_RUNNERS[phase])
+
+
+def test_invoke_aggregates_and_captures_errors():
+    class Eng:
+        def good(self, t):
+            return f"ok:{t}"
+
+        def bad(self, t):
+            raise RuntimeError("boom")
+    out = _orch._invoke(Eng(), [("good", ("x",)), ("bad", ("x",)),
+                                ("missing", ("x",))])
+    assert out["good"] == "ok:x"
+    assert out["bad"] == {"error": "boom"}
+    assert out["missing"] == {"error": "method not available"}
+
+
+def test_run_recon_dispatches_expected_methods():
+    eng = RecordingEngine()
+    out = _orch._run_recon("10.0.0.5", engine=eng)
+    called = [c[0] for c in eng.calls]
+    assert called == ["port_scan", "service_version_scan",
+                      "os_fingerprint", "waf_detection"]
+    assert all(c[1] == ("10.0.0.5",) for c in eng.calls)
+    assert out["port_scan"] == "port_scan-ok"
+
+
+def test_run_web_audit_coerces_url():
+    eng = RecordingEngine()
+    _orch._run_web_audit("example.com", engine=eng)
+    # every web method should have received the http(s) URL, not the bare host
+    assert all(c[1] == ("http://example.com",) for c in eng.calls)
+
+
+def test_run_post_exploitation_uses_no_target_args():
+    eng = RecordingEngine()
+    _orch._run_post_exploitation("10.0.0.5", engine=eng)
+    assert [c[0] for c in eng.calls] == [
+        "system_enumeration_full", "network_enumeration",
+        "process_enumeration", "user_enumeration"]
+    assert all(c[1] == () for c in eng.calls)
+
+
+def test_run_exploitation_with_injected_engine():
+    class FakeWar:
+        def run_attack(self, target):
+            return {"target": target, "ran": True}
+    out = _orch._run_exploitation("10.0.0.5", engine=FakeWar())
+    assert out["war_exploit"]["target"] == "10.0.0.5"
+
+
+def test_ai_redteam_phase_skips_non_url_target():
+    out = _orch._run_ai_redteam("10.0.0.5")
+    assert "skipped" in out["note"]
+
+
+def test_live_run_uses_builtin_runners_per_phase(monkeypatch):
+    # Replace built-in runners with spies so no real engine is imported.
+    seen = []
+
+    def spy(name):
+        def _r(target, log=None, engine=None):
+            seen.append((name, target))
+            return {"phase": name}
+        return _r
+
+    patched = {k: spy(k) for k in _orch.BUILTIN_PHASE_RUNNERS}
+    monkeypatch.setattr(_orch, "BUILTIN_PHASE_RUNNERS", patched)
+
+    orc = EngagementOrchestrator(scope_manager=FakeScope(["10.0.0.5"]))
+    r = orc.run(["10.0.0.5"], GOOD_OP, GOOD_REF, REQUIRED_CONFIRM_PHRASE,
+                dry_run=False, phases=["recon", "web_audit"])
+    assert r["status"] == "completed"
+    assert ("recon", "10.0.0.5") in seen
+    assert ("web_audit", "10.0.0.5") in seen
+    assert all(row["status"] == "completed" for row in r["results"])

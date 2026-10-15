@@ -247,20 +247,19 @@ class EngagementOrchestrator:
         return engagement
 
     def _default_live_runner(self, target, phase, ctx):
-        """Delegate a phase to the existing engines. Imported lazily so the
-        orchestrator stays importable in headless/test environments."""
-        if phase in ("exploitation", "exploit"):
-            try:
-                from modules.war_exploit import WarExploit
-            except ImportError:
-                from war_exploit import WarExploit
-            we = WarExploit()
-            return {"war_exploit": we.run_attack(target)}
-        # Other phases are intentionally left to an injected runner or the GUI
-        # wiring; the orchestrator does not invent new offensive behaviour, it
-        # only governs and reports on the engines that already exist.
-        return {"note": f"no built-in runner for phase '{phase}'; "
-                        f"inject a live_runner to execute it"}
+        """Delegate a phase to the existing engines.
+
+        Each phase maps to a curated battery of representative methods on the
+        relevant engine (see BUILTIN_PHASE_RUNNERS). Engines are imported
+        lazily so the orchestrator stays importable in headless/test
+        environments, and every underlying call is wrapped so one failing
+        tool does not abort the phase.
+        """
+        runner = BUILTIN_PHASE_RUNNERS.get(phase)
+        if runner is None:
+            return {"note": f"no built-in runner for phase '{phase}'; "
+                            f"inject a live_runner to execute it"}
+        return runner(target, log=self.log)
 
     # ---------------------------------------------------------- artifact ledger
     def register_artifact(self, kind, location, target="", note=""):
@@ -423,3 +422,138 @@ class EngagementOrchestrator:
         add("```")
         add("")
         return "\n".join(lines)
+
+
+# ============================================================ built-in runners
+#
+# Each phase maps to a curated battery of representative engine methods. These
+# run only in LIVE mode, after the authorization gate and per-target scope
+# enforcement have already passed. Every call is isolated so one failing tool
+# does not abort the phase, and engines can be injected for testing.
+
+def _load_engine(module_name, class_name):
+    """Lazily import an engine class, working as package or flat import."""
+    try:
+        mod = __import__(f"modules.{module_name}", fromlist=[class_name])
+    except ImportError:
+        mod = __import__(module_name, fromlist=[class_name])
+    return getattr(mod, class_name)
+
+
+def _as_url(target):
+    """Coerce a bare host/IP into an http URL for web tooling."""
+    if target.startswith(("http://", "https://")):
+        return target
+    return "http://" + target
+
+
+def _invoke(engine, calls, log=None):
+    """Run a list of (method_name, args) on an engine, collecting results.
+
+    A missing method or a raising call is captured as an error entry rather
+    than aborting the whole battery. Returns {method_name: result | {error}}.
+    """
+    out = {}
+    for name, args in calls:
+        method = getattr(engine, name, None)
+        if not callable(method):
+            out[name] = {"error": "method not available"}
+            continue
+        try:
+            out[name] = method(*args)
+        except Exception as e:  # noqa: BLE001
+            out[name] = {"error": str(e)}
+            if log:
+                log(f"{name} failed: {e}", "warn")
+    return out
+
+
+def _battery(module_name, class_name, build_calls):
+    """Return a phase-runner closure for a method-battery style engine."""
+    def _run(target, log=None, engine=None):
+        eng = engine
+        if eng is None:
+            eng = _load_engine(module_name, class_name)(
+                callback=(lambda m: log(m)) if log else None)
+        return _invoke(eng, build_calls(target), log=log)
+    return _run
+
+
+def _run_recon(target, log=None, engine=None):
+    return _battery("recon", "ReconModule", lambda t: [
+        ("port_scan", (t,)),
+        ("service_version_scan", (t,)),
+        ("os_fingerprint", (t,)),
+        ("waf_detection", (t,)),
+    ])(target, log=log, engine=engine)
+
+
+def _run_network_scan(target, log=None, engine=None):
+    return _battery("recon", "ReconModule", lambda t: [
+        ("port_scan", (t,)),
+        ("banner_grab", (t,)),
+        ("traceroute", (t,)),
+    ])(target, log=log, engine=engine)
+
+
+def _run_web_audit(target, log=None, engine=None):
+    url = _as_url(target)
+    return _battery("web", "WebExplorer", lambda t: [
+        ("technology_fingerprint", (url,)),
+        ("security_headers_check", (url,)),
+        ("vulnerability_scan", (url,)),
+        ("sql_injection_detection", (url,)),
+        ("xss_detection", (url,)),
+    ])(target, log=log, engine=engine)
+
+
+def _run_post_exploitation(target, log=None, engine=None):
+    # Post-exploitation enumerates the host the operator already controls;
+    # these methods take no target.
+    return _battery("postexploit", "PostExploitModule", lambda t: [
+        ("system_enumeration_full", ()),
+        ("network_enumeration", ()),
+        ("process_enumeration", ()),
+        ("user_enumeration", ()),
+    ])(target, log=log, engine=engine)
+
+
+def _run_exploitation(target, log=None, engine=None):
+    eng = engine
+    if eng is None:
+        eng = _load_engine("war_exploit", "WarExploit")()
+    return {"war_exploit": eng.run_attack(target)}
+
+
+def _run_ai_redteam(target, log=None, engine=None):
+    # Only meaningful when the target is an authorized chat endpoint URL.
+    if not target.startswith(("http://", "https://")):
+        return {"note": "ai_redteam phase skipped: target is not an http(s) "
+                        "chat endpoint. Point this phase at an authorized LLM "
+                        "endpoint URL."}
+    try:
+        AIRedTeam = _load_engine("ai_redteam", "AIRedTeam")
+        build_http_sender = getattr(
+            _load_engine_module("ai_redteam"), "build_http_sender")
+    except Exception as e:  # noqa: BLE001
+        return {"error": f"ai_redteam unavailable: {e}"}
+    rt = AIRedTeam(callback=(lambda m: log(m)) if log else None)
+    return {"ai_redteam": rt.test_endpoint(build_http_sender(target))}
+
+
+def _load_engine_module(module_name):
+    try:
+        return __import__(f"modules.{module_name}", fromlist=["*"])
+    except ImportError:
+        return __import__(module_name, fromlist=["*"])
+
+
+BUILTIN_PHASE_RUNNERS = {
+    "recon": _run_recon,
+    "network_scan": _run_network_scan,
+    "web_audit": _run_web_audit,
+    "exploitation": _run_exploitation,
+    "exploit": _run_exploitation,
+    "post_exploitation": _run_post_exploitation,
+    "ai_redteam": _run_ai_redteam,
+}
