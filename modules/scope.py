@@ -43,6 +43,7 @@ class ScopeManager:
         if key_path.exists():
             return key_path.read_text().strip()
         import secrets
+
         key = secrets.token_hex(32)
         key_path.write_text(key)
         os.chmod(str(key_path), 0o600)
@@ -68,8 +69,7 @@ class ScopeManager:
 
     # ── scope CRUD ────────────────────────────────────────────────────
 
-    def add_scope(self, name, targets, description="", start_date="",
-                  end_date="", operator=""):
+    def add_scope(self, name, targets, description="", start_date="", end_date="", operator=""):
         """Add an authorized scope.
 
         Args:
@@ -125,18 +125,14 @@ class ScopeManager:
             if scope_id not in self._data["scopes"]:
                 return False
             self._data["scopes"][scope_id]["active"] = False
-            self._data["scopes"][scope_id]["updated"] = (
-                datetime.now(tz=None).isoformat() + "Z"
-            )
+            self._data["scopes"][scope_id]["updated"] = datetime.now(tz=None).isoformat() + "Z"
             self._save()
         return True
 
     def list_scopes(self):
         """Return list of all active scopes."""
         with _lock:
-            return [
-                s for s in self._data["scopes"].values() if s.get("active", True)
-            ]
+            return [s for s in self._data["scopes"].values() if s.get("active", True)]
 
     def get_scope(self, scope_id):
         """Return scope dict by ID, or None."""
@@ -149,8 +145,7 @@ class ScopeManager:
             if scope_id not in self._data["scopes"]:
                 return False
             scope = self._data["scopes"][scope_id]
-            for key in ("name", "description", "start_date", "end_date",
-                        "operator", "active"):
+            for key in ("name", "description", "start_date", "end_date", "operator", "active"):
                 if key in kwargs:
                     scope[key] = kwargs[key]
             if "targets" in kwargs:
@@ -239,16 +234,18 @@ class ScopeManager:
                             remaining = f"{days}d {delta.seconds // 3600}h"
                     except ValueError:
                         remaining = "invalid date"
-                result.append({
-                    "id": s["id"],
-                    "name": s["name"],
-                    "start_date": s.get("start_date", ""),
-                    "end_date": end,
-                    "remaining": remaining,
-                    "expired": expired,
-                    "target_count": len(s.get("targets", [])),
-                    "operator": s.get("operator", ""),
-                })
+                result.append(
+                    {
+                        "id": s["id"],
+                        "name": s["name"],
+                        "start_date": s.get("start_date", ""),
+                        "end_date": end,
+                        "remaining": remaining,
+                        "expired": expired,
+                        "target_count": len(s.get("targets", [])),
+                        "operator": s.get("operator", ""),
+                    }
+                )
         return result
 
     # ── exclusions ────────────────────────────────────────────────────
@@ -260,11 +257,13 @@ class ScopeManager:
             if scope_id not in self._data["scopes"]:
                 return False
             excl = self._data["exclusions"].setdefault(scope_id, [])
-            excl.append({
-                "target": target_clean,
-                "reason": reason,
-                "added": datetime.now(tz=None).isoformat() + "Z",
-            })
+            excl.append(
+                {
+                    "target": target_clean,
+                    "reason": reason,
+                    "added": datetime.now(tz=None).isoformat() + "Z",
+                }
+            )
             self._save()
         return True
 
@@ -312,18 +311,18 @@ class ScopeManager:
                     report["expired_scopes"] += 1
 
                 report["total_targets"] += len(s.get("targets", []))
-                report["scopes"].append({
-                    "id": s["id"],
-                    "name": s["name"],
-                    "active": s.get("active", True),
-                    "expired": expired,
-                    "targets": s.get("targets", []),
-                    "exclusions": self._data["exclusions"].get(s["id"], []),
-                })
+                report["scopes"].append(
+                    {
+                        "id": s["id"],
+                        "name": s["name"],
+                        "active": s.get("active", True),
+                        "expired": expired,
+                        "targets": s.get("targets", []),
+                        "exclusions": self._data["exclusions"].get(s["id"], []),
+                    }
+                )
 
-            report["total_exclusions"] = sum(
-                len(v) for v in self._data["exclusions"].values()
-            )
+            report["total_exclusions"] = sum(len(v) for v in self._data["exclusions"].values())
             recent_blocked = self._data.get("blocked_attempts", [])[-20:]
             report["recent_blocked"] = recent_blocked
         return report
@@ -398,34 +397,42 @@ class ScopeManager:
         if format == "csv":
             import io
             import csv
+
             buf = io.StringIO()
             writer = csv.writer(buf)
-            writer.writerow(["name", "targets", "description", "start_date",
-                             "end_date", "operator", "active", "exclusions"])
-            writer.writerow([
-                scope["name"],
-                "; ".join(scope.get("raw_targets", scope["targets"])),
-                scope.get("description", ""),
-                scope.get("start_date", ""),
-                scope.get("end_date", ""),
-                scope.get("operator", ""),
-                scope.get("active", True),
-                "; ".join(e["target"] for e in exclusions),
-            ])
+            writer.writerow(
+                ["name", "targets", "description", "start_date", "end_date", "operator", "active", "exclusions"]
+            )
+            writer.writerow(
+                [
+                    scope["name"],
+                    "; ".join(scope.get("raw_targets", scope["targets"])),
+                    scope.get("description", ""),
+                    scope.get("start_date", ""),
+                    scope.get("end_date", ""),
+                    scope.get("operator", ""),
+                    scope.get("active", True),
+                    "; ".join(e["target"] for e in exclusions),
+                ]
+            )
             return buf.getvalue()
 
-        return json.dumps({
-            "scope": scope,
-            "exclusions": exclusions,
-        }, indent=2, ensure_ascii=False)
+        return json.dumps(
+            {
+                "scope": scope,
+                "exclusions": exclusions,
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
 
     # ── internal helpers ──────────────────────────────────────────────
 
     def _normalize_target(self, target):
         """Normalize a target string for comparison."""
         t = target.strip().lower()
-        t = re.sub(r'^https?://', '', t)
-        t = t.rstrip('/')
+        t = re.sub(r"^https?://", "", t)
+        t = t.rstrip("/")
         return t
 
     def _parse_target(self, raw):
@@ -498,7 +505,7 @@ class ScopeManager:
             except ValueError:
                 pass
 
-        if re.match(r'^[a-z0-9]([a-z0-9\-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]*[a-z0-9])?)*\.[a-z]{2,}$', entry):
+        if re.match(r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]*[a-z0-9])?)*\.[a-z]{2,}$", entry):
             if target == entry:
                 return True
             if target.endswith("." + entry):

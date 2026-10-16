@@ -179,7 +179,7 @@ class AuditLogger:
         with self._memory_lock:
             self._memory_log.append(entry)
             if len(self._memory_log) > self._max_memory_logs:
-                self._memory_log = self._memory_log[-self._max_memory_logs:]
+                self._memory_log = self._memory_log[-self._max_memory_logs :]
 
         return entry
 

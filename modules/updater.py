@@ -1,4 +1,5 @@
 """Auto-upgrade utility for BlackSentinel Strike."""
+
 import sys
 import json
 import subprocess
@@ -39,6 +40,7 @@ def check_for_updates(remote_url: str = None) -> dict:
     if remote_url:
         try:
             import urllib.request
+
             resp = urllib.request.urlopen(f"{remote_url}/version.json", timeout=10)
             data = json.loads(resp.read().decode())
             result["latest_version"] = data.get("version", current)
@@ -57,8 +59,7 @@ def backup_current() -> str:
     backup_name = f"backup_v{get_current_version()}_{ts}"
     backup_path = UPGRADE_DIR / backup_name
     app_dir = Path(__file__).parent.parent
-    shutil.copytree(app_dir, backup_path,
-                    ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".git", "vault"))
+    shutil.copytree(app_dir, backup_path, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".git", "vault"))
     _log(f"Backup created: {backup_path}")
     return str(backup_path)
 
@@ -80,7 +81,7 @@ def apply_update(source_dir: str) -> tuple:
         if new_ver_file.exists():
             set_version(new_ver_file.read_text().strip())
         _log(f"Update applied from {source_dir}")
-        return (True, f"Update applied. Restart required.")
+        return (True, "Update applied. Restart required.")
     except Exception as e:
         _log(f"Update failed: {e}")
         return (False, str(e))
@@ -93,7 +94,9 @@ def install_deps() -> tuple:
     try:
         result = subprocess.run(
             [sys.executable, "-m", "pip", "install", "--break-system-packages", "-r", str(req_file)],
-            capture_output=True, text=True, timeout=120
+            capture_output=True,
+            text=True,
+            timeout=120,
         )
         if result.returncode == 0:
             _log("Dependencies updated successfully")

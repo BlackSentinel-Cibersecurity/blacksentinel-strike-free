@@ -11,29 +11,51 @@ import socket
 import time
 import re
 import os
-import platform
 import struct
 import hashlib
-from datetime import datetime
 
 
 class HoneypotDetection:
     """Comprehensive honeypot detection and evasion module"""
 
     HONEYPOT_SIGNATURES = [
-        "cowrie", "dionaea", "kippo", "amun", "honeyd", "snort",
-        "shadowserver", "conpot", "ospot", "mwcollect", "neped",
-        "thug", "phoneyc", "honeytrap", "tcpd", "LaBrea", "knockpy",
-        "tanner", "rdpy", "opencanary", "deception", "attivo",
-        "honeypot-gui", "fake-sshd", "dshield", "honeysap",
+        "cowrie",
+        "dionaea",
+        "kippo",
+        "amun",
+        "honeyd",
+        "snort",
+        "shadowserver",
+        "conpot",
+        "ospot",
+        "mwcollect",
+        "neped",
+        "thug",
+        "phoneyc",
+        "honeytrap",
+        "tcpd",
+        "LaBrea",
+        "knockpy",
+        "tanner",
+        "rdpy",
+        "opencanary",
+        "deception",
+        "attivo",
+        "honeypot-gui",
+        "fake-sshd",
+        "dshield",
+        "honeysap",
     ]
 
     KNOWN_HONEYPOT_PORTS = [2222, 2223, 10222, 9922, 8022, 2280, 22022]
 
     FAKE_BANNER_INDICATORS = [
-        "SSH-2.0-OpenSSH_4.", "SSH-2.0-OpenSSH_5.0p1",
-        "220 Microsoft FTP Service", "220 ProFTPD",
-        "220 vsFTPd", "SSH-2.0-libssh",
+        "SSH-2.0-OpenSSH_4.",
+        "SSH-2.0-OpenSSH_5.0p1",
+        "220 Microsoft FTP Service",
+        "220 ProFTPD",
+        "220 vsFTPd",
+        "SSH-2.0-libssh",
     ]
 
     def __init__(self, callback=None):
@@ -50,9 +72,7 @@ class HoneypotDetection:
     def run_command(self, cmd, timeout=30):
         """Execute a system command and return stdout/stderr."""
         try:
-            result = subprocess.run(
-                cmd, shell=True, capture_output=True, text=True, timeout=timeout
-            )
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
             return result.stdout + result.stderr
         except subprocess.TimeoutExpired:
             return f"[TIMEOUT] Command timed out after {timeout}s: {cmd}"
@@ -80,11 +100,13 @@ class HoneypotDetection:
 
     def detect_honeypot_ssh_fingerprint(self, target, port=22):
         """Use ssh-keyscan to fingerprint the SSH service."""
-        output = self.run_command(
-            f"ssh-keyscan -p {port} {target} 2>/dev/null", timeout=15
-        )
+        output = self.run_command(f"ssh-keyscan -p {port} {target} 2>/dev/null", timeout=15)
         indicators = [
-            "HONEYPOT", "honeypot", "cowrie", "kippo", "fake",
+            "HONEYPOT",
+            "honeypot",
+            "cowrie",
+            "kippo",
+            "fake",
         ]
         for ind in indicators:
             if ind.lower() in output.lower():
@@ -95,9 +117,7 @@ class HoneypotDetection:
 
     def detect_honeypot_nmap_service(self, target, port=22):
         """Run nmap service version scan to detect honeypot service fingerprints."""
-        output = self.run_command(
-            f"nmap -sV -p {port} --version-intensity 5 {target} 2>/dev/null", timeout=60
-        )
+        output = self.run_command(f"nmap -sV -p {port} --version-intensity 5 {target} 2>/dev/null", timeout=60)
         honeypot_products = ["cowrie", "kippo", "dionaea", "honeyd", "conpot"]
         for prod in honeypot_products:
             if prod.lower() in output.lower():
@@ -124,9 +144,7 @@ class HoneypotDetection:
             ports = self.KNOWN_HONEYPOT_PORTS
         found = []
         for port in ports:
-            output = self.run_command(
-                f"nc -z -w 2 {target} {port} 2>&1 && echo OPEN", timeout=5
-            )
+            output = self.run_command(f"nc -z -w 2 {target} {port} 2>&1 && echo OPEN", timeout=5)
             if "OPEN" in output:
                 found.append(port)
         if found:
@@ -161,9 +179,7 @@ class HoneypotDetection:
         arp_output = self.run_command(f"arp -n {target}", timeout=5)
         if "no entry" in arp_output.lower() or "incomplete" in arp_output.lower():
             return "[SUSPICIOUS] ARP entry incomplete - possible virtual honeyd host"
-        output2 = self.run_command(
-            f"traceroute -m 5 -w 2 {target}", timeout=20
-        )
+        output2 = self.run_command(f"traceroute -m 5 -w 2 {target}", timeout=20)
         hops = output2.count("\n")
         if hops > 0 and hops < 3:
             return f"[SUSPICIOUS] Only {hops} hops - target may be on local honeyd"
@@ -225,8 +241,15 @@ class HoneypotDetection:
         """Check WHOIS data for known honeypot hosting providers."""
         output = self.run_command(f"whois {target} 2>/dev/null", timeout=20)
         honeypot_keywords = [
-            "honeypot", "deception", "trap", "decoy", "canary",
-            "shadowserver", "dshield", "research", "sandbox",
+            "honeypot",
+            "deception",
+            "trap",
+            "decoy",
+            "canary",
+            "shadowserver",
+            "dshield",
+            "research",
+            "sandbox",
         ]
         for kw in honeypot_keywords:
             if kw.lower() in output.lower():
@@ -254,7 +277,7 @@ class HoneypotDetection:
             f'curl -s "https://api.shodan.io/shodan/host/{target}?key={api_key}" 2>/dev/null',
             timeout=15,
         )
-        honeypot_indicators = ['"honeypot":true', '"honeypot": true', 'honeypot']
+        honeypot_indicators = ['"honeypot":true', '"honeypot": true', "honeypot"]
         for ind in honeypot_indicators:
             if ind.lower() in output.lower():
                 return f"[HONEYPOT] Shodan reports honeypot=true for {target}"
@@ -262,14 +285,13 @@ class HoneypotDetection:
 
     def detect_honeypot_geolocation(self, target):
         """Check geolocation - honeypots are sometimes in unusual datacenter locations."""
-        output = self.run_command(
-            f'curl -s "http://ip-api.com/json/{target}" 2>/dev/null', timeout=10
-        )
+        output = self.run_command(f'curl -s "http://ip-api.com/json/{target}" 2>/dev/null', timeout=10)
         if not output.strip():
             return "[ERROR] Could not retrieve geolocation data"
         suspicious_countries = ["zz", "none", "unknown", ""]
         try:
             import json
+
             data = json.loads(output)
             country = data.get("country", "unknown")
             org = data.get("org", "unknown")
@@ -282,9 +304,7 @@ class HoneypotDetection:
 
     def detect_honeypot_os_fingerprint(self, target, port=22):
         """Use nmap OS fingerprinting - honeypots often report fake OS data."""
-        output = self.run_command(
-            f"nmap -O --osscan-guess {target} 2>/dev/null", timeout=60
-        )
+        output = self.run_command(f"nmap -O --osscan-guess {target} 2>/dev/null", timeout=60)
         if "OS details" in output:
             os_line = [l for l in output.split("\n") if "OS details" in l or "Running:" in l]
             if os_line:
@@ -295,9 +315,7 @@ class HoneypotDetection:
 
     def detect_honeypot_tcp_ip_fingerprint(self, target, port=22):
         """Analyze TCP/IP stack behavior for honeypot emulation artifacts."""
-        output = self.run_command(
-            f"nmap -O -p {port} --fuzzy {target} 2>/dev/null", timeout=30
-        )
+        output = self.run_command(f"nmap -O -p {port} --fuzzy {target} 2>/dev/null", timeout=30)
         anomalies = []
         if "Device type:" in output and "general purpose" in output.lower():
             anomalies.append("Generic device type detected")
@@ -338,9 +356,7 @@ class HoneypotDetection:
 
     def detect_honeypot_web_technology(self, target, port=80):
         """Check web technology fingerprints for honeypot indicators."""
-        output = self.run_command(
-            f"curl -sI http://{target}:{port}/ 2>/dev/null", timeout=10
-        )
+        output = self.run_command(f"curl -sI http://{target}:{port}/ 2>/dev/null", timeout=10)
         honeypot_headers = ["x-honeypot", "x-trap", "x-deception", "x-canary"]
         for h in honeypot_headers:
             if h.lower() in output.lower():
@@ -357,9 +373,7 @@ class HoneypotDetection:
 
     def detect_honeypot_open_files(self, target):
         """Check if /proc or sysfs files reveal honeypot emulators."""
-        output = self.run_command(
-            f"ssh {target} 'cat /proc/version 2>/dev/null; uname -a 2>/dev/null'", timeout=10
-        )
+        output = self.run_command(f"ssh {target} 'cat /proc/version 2>/dev/null; uname -a 2>/dev/null'", timeout=10)
         emulator_signs = ["qemu", "virtualbox", "vmware", "xen", "docker", "lxc", "container"]
         for sign in emulator_signs:
             if sign.lower() in output.lower():
@@ -375,7 +389,7 @@ class HoneypotDetection:
         times = [float(t) for t in times]
         avg = sum(times) / len(times)
         variance = sum((t - avg) ** 2 for t in times) / len(times)
-        std_dev = variance ** 0.5
+        std_dev = variance**0.5
         if std_dev < 0.01 and avg < 1.0:
             return f"[SUSPICIOUS] Unnaturally consistent latency (avg={avg:.3f}ms, std={std_dev:.3f}ms) - possible local honeypot"
         return f"[INFO] Latency: avg={avg:.3f}ms, std={std_dev:.3f}ms"
@@ -386,9 +400,7 @@ class HoneypotDetection:
 
     def test_anti_detection_evasion(self, target, port=22):
         """Test if the target detects and responds to scan evasion techniques."""
-        output = self.run_command(
-            f"nmap -f -D RND:5 -p {port} {target} 2>/dev/null", timeout=60
-        )
+        output = self.run_command(f"nmap -f -D RND:5 -p {port} {target} 2>/dev/null", timeout=60)
         if "filtered" in output.lower():
             return f"[INFO] Port {port} shows filtered after evasion - may indicate detection: {output[:300]}"
         return f"[INFO] Evasion scan result:\n{output[:300]}"
@@ -415,12 +427,15 @@ class HoneypotDetection:
 
     def test_honeypot_detection_depth(self, target, port=22):
         """Deep service interaction to trigger honeypot behavior."""
-        output = self.run_command(
-            f"echo 'test' | nc -w 3 {target} {port} 2>&1", timeout=8
-        )
+        output = self.run_command(f"echo 'test' | nc -w 3 {target} {port} 2>&1", timeout=8)
         interaction_indicators = [
-            "login", "password", "username", "welcome",
-            "command", "shell", "session",
+            "login",
+            "password",
+            "username",
+            "welcome",
+            "command",
+            "shell",
+            "session",
         ]
         matches = [ind for ind in interaction_indicators if ind.lower() in output.lower()]
         if len(matches) >= 2:
@@ -429,9 +444,7 @@ class HoneypotDetection:
 
     def test_honeypot_resource_usage(self, target, port=22):
         """Monitor resource usage during scan to detect sandboxed honeypots."""
-        output = self.run_command(
-            f"nmap -sS -p {port} --top-ports 1 {target} 2>/dev/null", timeout=30
-        )
+        output = self.run_command(f"nmap -sS -p {port} --top-ports 1 {target} 2>/dev/null", timeout=30)
         vm_indicators = ["Virtual", "VMware", "VirtualBox", "Xen", "KVM", "Hyper-V"]
         for ind in vm_indicators:
             if ind.lower() in output.lower():
@@ -447,9 +460,7 @@ class HoneypotDetection:
             banner = sock.recv(256).decode("utf-8", errors="replace")
             sock.close()
             if "SSH-2.0" in banner:
-                output = self.run_command(
-                    f'ssh {target} "ls /etc/ 2>/dev/null | head -20"', timeout=10
-                )
+                output = self.run_command(f'ssh {target} "ls /etc/ 2>/dev/null | head -20"', timeout=10)
                 if output.strip():
                     honeypot_files = ["cowrie", "kippo", "dionaea", "honeyd", "conpot"]
                     for f in honeypot_files:
@@ -475,9 +486,7 @@ class HoneypotDetection:
 
     def test_honeypot_network_interfaces(self, target):
         """Check network interfaces for virtual adapters common in honeypots."""
-        output = self.run_command(
-            f"ssh {target} 'ip link show 2>/dev/null || ifconfig 2>/dev/null'", timeout=10
-        )
+        output = self.run_command(f"ssh {target} 'ip link show 2>/dev/null || ifconfig 2>/dev/null'", timeout=10)
         virtual_ifs = ["virbr", "br-", "docker", "veth", "tun", "tap", "dummy"]
         found = [v for v in virtual_ifs if v.lower() in output.lower()]
         if found:
@@ -511,9 +520,7 @@ class HoneypotDetection:
 
     def test_honeypot_hardware_info(self, target):
         """Check hardware info for VM/honeypot indicators."""
-        output = self.run_command(
-            f"ssh {target} 'cat /proc/cpuinfo 2>/dev/null | head -20'", timeout=10
-        )
+        output = self.run_command(f"ssh {target} 'cat /proc/cpuinfo 2>/dev/null | head -20'", timeout=10)
         vm_hardware = ["qemu", "kvm", "virtualbox", "vmware", "xen", "hyper-v", "bhyve"]
         found = [h for h in vm_hardware if h.lower() in output.lower()]
         if found:
@@ -536,58 +543,46 @@ class HoneypotDetection:
                 data = sock.recv(1024)
                 sock.close()
                 elapsed = time.time() - start
-                results.append(f"Connection {i+1}: {elapsed:.3f}s")
+                results.append(f"Connection {i + 1}: {elapsed:.3f}s")
             except Exception as e:
-                results.append(f"Connection {i+1}: FAILED ({e})")
+                results.append(f"Connection {i + 1}: FAILED ({e})")
             time.sleep(delay)
-        return f"[INFO] Speed control evasion test:\n" + "\n".join(results)
+        return "[INFO] Speed control evasion test:\n" + "\n".join(results)
 
     def evade_honeypot_random_source(self, target, port=22):
         """Use randomized source ports to evade honeypot correlation."""
         results = []
         for i in range(5):
             src_port = 1024 + (i * 1000)
-            output = self.run_command(
-                f"nc -s 0.0.0.0 -p {src_port} -w 2 {target} {port} 2>&1", timeout=5
-            )
+            output = self.run_command(f"nc -s 0.0.0.0 -p {src_port} -w 2 {target} {port} 2>&1", timeout=5)
             results.append(f"Source port {src_port}: {output[:100]}")
-        return f"[INFO] Random source port test:\n" + "\n".join(results)
+        return "[INFO] Random source port test:\n" + "\n".join(results)
 
     def evade_honeypot_fragmentation(self, target, port=22):
         """Use packet fragmentation to evade signature-based honeypot detection."""
-        output = self.run_command(
-            f"nmap -f -p {port} {target} 2>/dev/null", timeout=30
-        )
+        output = self.run_command(f"nmap -f -p {port} {target} 2>/dev/null", timeout=30)
         return f"[INFO] Fragmented scan result:\n{output[:400]}"
 
     def evade_honeypot_decoy_scan(self, target, port=22, decoys=None):
         """Use decoy IPs to mask scan origin from honeypot monitoring."""
         if decoys is None:
             decoys = "192.168.1.1,10.0.0.1,172.16.0.1"
-        output = self.run_command(
-            f"nmap -D {decoys} -p {port} {target} 2>/dev/null", timeout=30
-        )
+        output = self.run_command(f"nmap -D {decoys} -p {port} {target} 2>/dev/null", timeout=30)
         return f"[INFO] Decoy scan result:\n{output[:400]}"
 
     def evade_honeypot_idle_scan(self, target, port=22):
         """Perform idle/zombie scan to avoid direct interaction with honeypot."""
-        output = self.run_command(
-            f"nmap -sI {target} -p {port} 2>/dev/null", timeout=30
-        )
+        output = self.run_command(f"nmap -sI {target} -p {port} 2>/dev/null", timeout=30)
         return f"[INFO] Idle scan result:\n{output[:400]}"
 
     def evade_honeypot_source_port(self, target, port=22, src_port=53):
         """Use trusted source port (53/DNS) to bypass honeypot filters."""
-        output = self.run_command(
-            f"nmap --source-port {src_port} -p {port} {target} 2>/dev/null", timeout=30
-        )
+        output = self.run_command(f"nmap --source-port {src_port} -p {port} {target} 2>/dev/null", timeout=30)
         return f"[INFO] Source port {src_port} scan result:\n{output[:400]}"
 
     def evade_honeypot_mac_spoof(self, target, port=22):
         """Test if MAC address spoofing affects honeypot behavior."""
-        output = self.run_command(
-            f"nmap --spoof-mac 0 -p {port} {target} 2>/dev/null", timeout=30
-        )
+        output = self.run_command(f"nmap --spoof-mac 0 -p {port} {target} 2>/dev/null", timeout=30)
         return f"[INFO] MAC spoof scan result:\n{output[:400]}"
 
     def evade_honeypot_timing(self, target, port=22):
@@ -600,17 +595,15 @@ class HoneypotDetection:
                 sock.settimeout(1)
                 sock.connect((target, int(port)))
                 sock.close()
-                results.append(f"{i+1}: OK")
+                results.append(f"{i + 1}: OK")
             except Exception as e:
-                results.append(f"{i+1}: FAIL")
+                results.append(f"{i + 1}: FAIL")
         elapsed = time.time() - start
         return f"[INFO] Timing evasion ({elapsed:.3f}s total):\n" + "\n".join(results[:10])
 
     def evade_honeypot_ttl_manipulation(self, target, port=22):
         """Use manipulated TTL values to confuse honeypot fingerprinting."""
-        output = self.run_command(
-            f"nmap --ttl 64 -p {port} {target} 2>/dev/null", timeout=30
-        )
+        output = self.run_command(f"nmap --ttl 64 -p {port} {target} 2>/dev/null", timeout=30)
         return f"[INFO] TTL manipulation scan:\n{output[:400]}"
 
     def evade_honeypot_data_poison(self, target, port=22):
@@ -633,16 +626,12 @@ class HoneypotDetection:
 
     def evade_honeypot_udp_scan(self, target, port=53):
         """Use UDP scanning which many honeypots poorly emulate."""
-        output = self.run_command(
-            f"nmap -sU -p {port} {target} 2>/dev/null", timeout=30
-        )
+        output = self.run_command(f"nmap -sU -p {port} {target} 2>/dev/null", timeout=30)
         return f"[INFO] UDP scan result:\n{output[:400]}"
 
     def evade_honeypot_null_scan(self, target, port=22):
         """Perform NULL scan to evade stateful honeypot firewalls."""
-        output = self.run_command(
-            f"nmap -sN -p {port} {target} 2>/dev/null", timeout=30
-        )
+        output = self.run_command(f"nmap -sN -p {port} {target} 2>/dev/null", timeout=30)
         return f"[INFO] NULL scan result:\n{output[:400]}"
 
     # ═════════════════════════════════════════════
@@ -811,17 +800,13 @@ class HoneypotDetection:
         ssl_cert = self.detect_honeypot_ssl_cert(target, 443)
         results.append(f"SSL cert: {ssl_cert}\n")
 
-        output = self.run_command(
-            f"curl -s http://{target}:{port}/robots.txt 2>/dev/null | head -20", timeout=10
-        )
+        output = self.run_command(f"curl -s http://{target}:{port}/robots.txt 2>/dev/null | head -20", timeout=10)
         if "honeypot" in output.lower() or "trap" in output.lower():
             results.append(f"[SUSPICIOUS] robots.txt contains trap reference:\n{output[:200]}\n")
         else:
             results.append(f"robots.txt: {output[:200]}\n")
 
-        output2 = self.run_command(
-            f"curl -s http://{target}:{port}/.env 2>/dev/null | head -10", timeout=10
-        )
+        output2 = self.run_command(f"curl -s http://{target}:{port}/.env 2>/dev/null | head -10", timeout=10)
         if output2.strip() and "error" not in output2.lower():
             results.append(f"[SUSPICIOUS] .env file accessible (honeypot trap):\n{output2[:200]}\n")
         else:

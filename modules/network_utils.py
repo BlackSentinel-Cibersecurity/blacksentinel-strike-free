@@ -1,6 +1,7 @@
 """Network utilities: IP jumper, DNS switcher, MAC randomizer.
 Cross-platform: macOS (ifconfig/networksetup) and Linux (ip/ifconfig).
 """
+
 import os
 import time
 import random
@@ -31,12 +32,13 @@ def get_current_mac(interface: str = None) -> str:
         if _IS_MACOS:
             out = subprocess.check_output(
                 f"ifconfig {interface} | grep ether | awk '{{print $2}}'",
-                shell=True, text=True, stderr=subprocess.DEVNULL
+                shell=True,
+                text=True,
+                stderr=subprocess.DEVNULL,
             ).strip()
         else:
             out = subprocess.check_output(
-                f"cat /sys/class/net/{interface}/address",
-                shell=True, text=True, stderr=subprocess.DEVNULL
+                f"cat /sys/class/net/{interface}/address", shell=True, text=True, stderr=subprocess.DEVNULL
             ).strip()
         return out if out else "N/A"
     except Exception:
@@ -46,9 +48,9 @@ def get_current_mac(interface: str = None) -> str:
 def get_interfaces() -> list:
     try:
         if _IS_MACOS:
-            out = subprocess.check_output(
-                "ifconfig -l", shell=True, text=True, stderr=subprocess.DEVNULL
-            ).strip().split()
+            out = (
+                subprocess.check_output("ifconfig -l", shell=True, text=True, stderr=subprocess.DEVNULL).strip().split()
+            )
             return [i for i in out if not i.startswith("lo")]
         else:
             return [i for i in os.listdir("/sys/class/net") if i != "lo"]
@@ -73,12 +75,13 @@ def get_network_info() -> dict:
         if _IS_MACOS:
             info["gateway"] = subprocess.check_output(
                 "route -n get default 2>/dev/null | grep gateway | awk '{print $2}'",
-                shell=True, text=True, stderr=subprocess.DEVNULL
+                shell=True,
+                text=True,
+                stderr=subprocess.DEVNULL,
             ).strip()
         else:
             info["gateway"] = subprocess.check_output(
-                "ip route show default | awk '/default/ {print $3}'",
-                shell=True, text=True, stderr=subprocess.DEVNULL
+                "ip route show default | awk '/default/ {print $3}'", shell=True, text=True, stderr=subprocess.DEVNULL
             ).strip()
     except Exception:
         info["gateway"] = "N/A"
@@ -96,8 +99,7 @@ def _is_interface_up(interface: str) -> bool:
     try:
         if _IS_MACOS:
             out = subprocess.check_output(
-                f"ifconfig {interface} | grep status",
-                shell=True, text=True, stderr=subprocess.DEVNULL
+                f"ifconfig {interface} | grep status", shell=True, text=True, stderr=subprocess.DEVNULL
             ).strip()
             return "active" in out.lower()
         else:
@@ -108,9 +110,14 @@ def _is_interface_up(interface: str) -> bool:
 
 
 def random_mac() -> str:
-    mac = [0x02, random.randint(0x00, 0x7f),
-           random.randint(0x00, 0xff), random.randint(0x00, 0xff),
-           random.randint(0x00, 0xff), random.randint(0x00, 0xff)]
+    mac = [
+        0x02,
+        random.randint(0x00, 0x7F),
+        random.randint(0x00, 0xFF),
+        random.randint(0x00, 0xFF),
+        random.randint(0x00, 0xFF),
+        random.randint(0x00, 0xFF),
+    ]
     return ":".join(f"{b:02x}" for b in mac)
 
 
@@ -118,22 +125,19 @@ def set_mac(interface: str, mac_address: str) -> tuple:
     try:
         if _IS_MACOS:
             subprocess.run(
-                ["sudo", "ifconfig", interface, "ether", mac_address],
-                check=True, capture_output=True, timeout=10
+                ["sudo", "ifconfig", interface, "ether", mac_address], check=True, capture_output=True, timeout=10
             )
         else:
             subprocess.run(
-                ["sudo", "ip", "link", "set", interface, "down"],
-                check=True, capture_output=True, timeout=10
+                ["sudo", "ip", "link", "set", interface, "down"], check=True, capture_output=True, timeout=10
             )
             subprocess.run(
                 ["sudo", "ip", "link", "set", interface, "address", mac_address],
-                check=True, capture_output=True, timeout=10
+                check=True,
+                capture_output=True,
+                timeout=10,
             )
-            subprocess.run(
-                ["sudo", "ip", "link", "set", interface, "up"],
-                check=True, capture_output=True, timeout=10
-            )
+            subprocess.run(["sudo", "ip", "link", "set", interface, "up"], check=True, capture_output=True, timeout=10)
         return (True, f"MAC changed to {mac_address} on {interface}")
     except subprocess.CalledProcessError as e:
         return (False, f"Error: {e.stderr.decode().strip()}")
@@ -155,8 +159,7 @@ def set_dns(primary: str, secondary: str = "") -> tuple:
         if secondary:
             resolv_content += f"nameserver {secondary}\n"
         proc = subprocess.run(
-            ["sudo", "tee", "/etc/resolv.conf"],
-            input=resolv_content.encode(), capture_output=True, timeout=10
+            ["sudo", "tee", "/etc/resolv.conf"], input=resolv_content.encode(), capture_output=True, timeout=10
         )
         if proc.returncode == 0:
             return (True, f"DNS set to {primary}" + (f" / {secondary}" if secondary else ""))
@@ -170,14 +173,10 @@ def restore_dns() -> tuple:
     try:
         if _IS_MACOS:
             subprocess.run(
-                ["sudo", "networksetup", "-setdnsservers", "Wi-Fi", "Empty"],
-                capture_output=True, timeout=10
+                ["sudo", "networksetup", "-setdnsservers", "Wi-Fi", "Empty"], capture_output=True, timeout=10
             )
         else:
-            subprocess.run(
-                ["sudo", "rm", "-f", "/etc/resolv.conf"],
-                capture_output=True, timeout=5
-            )
+            subprocess.run(["sudo", "rm", "-f", "/etc/resolv.conf"], capture_output=True, timeout=5)
         return (True, "DNS restored to DHCP default")
     except Exception as e:
         return (False, str(e))
@@ -188,19 +187,10 @@ def renew_dhcp(interface: str = None) -> tuple:
         interface = _default_interface()
     try:
         if _IS_MACOS:
-            subprocess.run(
-                ["sudo", "ipconfig", "set", interface, "DHCP"],
-                check=True, capture_output=True, timeout=15
-            )
+            subprocess.run(["sudo", "ipconfig", "set", interface, "DHCP"], check=True, capture_output=True, timeout=15)
         else:
-            subprocess.run(
-                ["sudo", "dhclient", "-r", interface],
-                capture_output=True, timeout=15
-            )
-            subprocess.run(
-                ["sudo", "dhclient", interface],
-                check=True, capture_output=True, timeout=15
-            )
+            subprocess.run(["sudo", "dhclient", "-r", interface], capture_output=True, timeout=15)
+            subprocess.run(["sudo", "dhclient", interface], check=True, capture_output=True, timeout=15)
         new_ip = get_current_ip()
         return (True, f"DHCP renewed. New IP: {new_ip}")
     except Exception as e:
@@ -269,8 +259,7 @@ class IPJumper:
 def run_nmap_discovery(target: str, scan_type: str = "-sn") -> str:
     try:
         out = subprocess.check_output(
-            f"nmap {scan_type} {target} 2>&1",
-            shell=True, text=True, timeout=120, stderr=subprocess.STDOUT
+            f"nmap {scan_type} {target} 2>&1", shell=True, text=True, timeout=120, stderr=subprocess.STDOUT
         )
         return out
     except subprocess.TimeoutExpired:

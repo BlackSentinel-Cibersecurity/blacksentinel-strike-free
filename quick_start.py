@@ -60,15 +60,14 @@ def install_missing(packages, label):
     if not packages:
         return
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  INSTALLING MISSING {label}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     for package, install_cmd in packages:
         print(f"\n[*] Installing {package}...")
         try:
-            subprocess.run(install_cmd, shell=True, check=True,
-                         capture_output=True, text=True)
+            subprocess.run(install_cmd, shell=True, check=True, capture_output=True, text=True)
             print(f"  [OK] {package} installed successfully")
         except subprocess.CalledProcessError as e:
             print(f"  [!] Failed to install {package}")
@@ -77,9 +76,10 @@ def install_missing(packages, label):
 
 def check_root():
     """Check if running with appropriate permissions."""
-    if os.name == 'nt':
+    if os.name == "nt":
         try:
             import ctypes
+
             if ctypes.windll.shell32.IsUserAnAdmin() == 0:
                 print("\n[*] Note: Some features require Administrator privileges.")
                 print("    Right-click and 'Run as Administrator' for full access.")
@@ -119,7 +119,7 @@ def main():
     # Offer to install missing Python packages
     if missing_python:
         response = input("\n[?] Install missing Python packages? (y/n): ")
-        if response.lower() == 'y':
+        if response.lower() == "y":
             install_missing(missing_python, "PYTHON PACKAGES")
         else:
             print("[*] Skipping Python package installation")
@@ -134,12 +134,13 @@ def main():
     check_root()
 
     # Launch application
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("        LAUNCHING BLACKSENTINEL STRIKE")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     try:
         from app import App
+
         app = App()
         app.mainloop()
     except ImportError as e:

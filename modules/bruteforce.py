@@ -49,7 +49,7 @@ class BruteForceModule:
             "failed_attempts": 0,
             "services_tested": [],
             "start_time": None,
-            "end_time": None
+            "end_time": None,
         }
 
     def log(self, message, level="info"):
@@ -89,18 +89,13 @@ class BruteForceModule:
     def _parse_hydra_output(self, output, service, target):
         """Parse hydra output for found credentials"""
         found = []
-        for line in output.split('\n'):
-            if f'[{service}]' in line and 'host:' in line:
+        for line in output.split("\n"):
+            if f"[{service}]" in line and "host:" in line:
                 parts = line.split()
                 if len(parts) >= 2:
-                    username = parts[0].split('[')[1].split(']')[0] if '[' in parts[0] else parts[0]
+                    username = parts[0].split("[")[1].split("]")[0] if "[" in parts[0] else parts[0]
                     password = parts[-1]
-                    cred = {
-                        "service": service,
-                        "username": username,
-                        "password": password,
-                        "target": target
-                    }
+                    cred = {"service": service, "username": username, "password": password, "target": target}
                     found.append(cred)
                     self.found_credentials.append(cred)
                     self.log(f"Credential found! {username}:{password}", "success")
@@ -122,22 +117,19 @@ class BruteForceModule:
             output = result.stdout + result.stderr
 
             # Parse found credentials
-            for line in output.split('\n'):
-                if '[ssh]' in line and 'host:' in line:
+            for line in output.split("\n"):
+                if "[ssh]" in line and "host:" in line:
                     parts = line.split()
                     password = parts[-1]
-                    self.found_credentials.append({
-                        "service": "ssh",
-                        "username": username,
-                        "password": password,
-                        "target": target
-                    })
+                    self.found_credentials.append(
+                        {"service": "ssh", "username": username, "password": password, "target": target}
+                    )
                     self.log(f"Credential found! {username}:{password}", "success")
 
             self.results["ssh"] = {
                 "success": len(self.found_credentials) > 0,
                 "output": output,
-                "credentials": self.found_credentials
+                "credentials": self.found_credentials,
             }
 
             return output
@@ -190,7 +182,7 @@ class BruteForceModule:
             "success": len(self.found_credentials) > 0,
             "output": combined_output,
             "credentials": self.found_credentials,
-            "users_tested": usernames
+            "users_tested": usernames,
         }
 
         self.is_running = False
@@ -212,22 +204,19 @@ class BruteForceModule:
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=600)
             output = result.stdout + result.stderr
 
-            for line in output.split('\n'):
-                if '[ftp]' in line and 'host:' in line:
+            for line in output.split("\n"):
+                if "[ftp]" in line and "host:" in line:
                     parts = line.split()
                     password = parts[-1]
-                    self.found_credentials.append({
-                        "service": "ftp",
-                        "username": username,
-                        "password": password,
-                        "target": target
-                    })
+                    self.found_credentials.append(
+                        {"service": "ftp", "username": username, "password": password, "target": target}
+                    )
                     self.log(f"Credential found! {username}:{password}", "success")
 
             self.results["ftp"] = {
                 "success": len(self.found_credentials) > 0,
                 "output": output,
-                "credentials": self.found_credentials
+                "credentials": self.found_credentials,
             }
 
             return output
@@ -280,7 +269,7 @@ class BruteForceModule:
             "success": len(self.found_credentials) > 0,
             "output": combined_output,
             "credentials": self.found_credentials,
-            "users_tested": usernames
+            "users_tested": usernames,
         }
 
         self.is_running = False
@@ -302,22 +291,19 @@ class BruteForceModule:
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=600)
             output = result.stdout + result.stderr
 
-            for line in output.split('\n'):
-                if '[http-get]' in line and 'host:' in line:
+            for line in output.split("\n"):
+                if "[http-get]" in line and "host:" in line:
                     parts = line.split()
                     password = parts[-1]
-                    self.found_credentials.append({
-                        "service": "http",
-                        "username": username,
-                        "password": password,
-                        "target": target
-                    })
+                    self.found_credentials.append(
+                        {"service": "http", "username": username, "password": password, "target": target}
+                    )
                     self.log(f"Credential found! {username}:{password}", "success")
 
             self.results["http"] = {
                 "success": len(self.found_credentials) > 0,
                 "output": output,
-                "credentials": self.found_credentials
+                "credentials": self.found_credentials,
             }
 
             return output
@@ -349,7 +335,7 @@ class BruteForceModule:
         found = []
 
         try:
-            with open(wordlist, 'r', errors='ignore') as f:
+            with open(wordlist, "r", errors="ignore") as f:
                 passwords = [line.strip() for line in f.readlines() if line.strip()]
         except FileNotFoundError:
             self.log(f"Wordlist not found: {wordlist}", "error")
@@ -370,12 +356,7 @@ class BruteForceModule:
                 try:
                     response = requests.get(url, auth=(username, password), timeout=10, verify=False)
                     if response.status_code == 200:
-                        cred = {
-                            "service": "http_basic",
-                            "username": username,
-                            "password": password,
-                            "target": target
-                        }
+                        cred = {"service": "http_basic", "username": username, "password": password, "target": target}
                         found.append(cred)
                         self.found_credentials.append(cred)
                         self.stats["successful_attempts"] += 1
@@ -394,7 +375,7 @@ class BruteForceModule:
             "success": len(found) > 0,
             "credentials": found,
             "users_tested": usernames,
-            "total_attempts": attempt
+            "total_attempts": attempt,
         }
 
         self.is_running = False
@@ -421,7 +402,7 @@ class BruteForceModule:
         usernames = ["admin", "root", "user", "test", "guest"]
 
         try:
-            with open(wordlist, 'r', errors='ignore') as f:
+            with open(wordlist, "r", errors="ignore") as f:
                 passwords = [line.strip() for line in f.readlines() if line.strip()]
         except FileNotFoundError:
             self.log(f"Wordlist not found: {wordlist}", "error")
@@ -444,12 +425,7 @@ class BruteForceModule:
                     response = requests.post(url, data=data, timeout=10, verify=False, allow_redirects=False)
 
                     if response.status_code in [200, 302] and "invalid" not in response.text.lower():
-                        cred = {
-                            "service": "http_form",
-                            "username": username,
-                            "password": password,
-                            "target": target
-                        }
+                        cred = {"service": "http_form", "username": username, "password": password, "target": target}
                         found.append(cred)
                         self.found_credentials.append(cred)
                         self.stats["successful_attempts"] += 1
@@ -468,7 +444,7 @@ class BruteForceModule:
             "success": len(found) > 0,
             "credentials": found,
             "users_tested": usernames,
-            "total_attempts": attempt
+            "total_attempts": attempt,
         }
 
         self.is_running = False
@@ -490,22 +466,19 @@ class BruteForceModule:
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=600)
             output = result.stdout + result.stderr
 
-            for line in output.split('\n'):
-                if '[smb]' in line and 'host:' in line:
+            for line in output.split("\n"):
+                if "[smb]" in line and "host:" in line:
                     parts = line.split()
                     password = parts[-1]
-                    self.found_credentials.append({
-                        "service": "smb",
-                        "username": username,
-                        "password": password,
-                        "target": target
-                    })
+                    self.found_credentials.append(
+                        {"service": "smb", "username": username, "password": password, "target": target}
+                    )
                     self.log(f"Credential found! {username}:{password}", "success")
 
             self.results["smb"] = {
                 "success": len(self.found_credentials) > 0,
                 "output": output,
-                "credentials": self.found_credentials
+                "credentials": self.found_credentials,
             }
 
             return output
@@ -558,7 +531,7 @@ class BruteForceModule:
             "success": len(self.found_credentials) > 0,
             "output": combined_output,
             "credentials": self.found_credentials,
-            "users_tested": usernames
+            "users_tested": usernames,
         }
 
         self.is_running = False
@@ -580,22 +553,19 @@ class BruteForceModule:
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=600)
             output = result.stdout + result.stderr
 
-            for line in output.split('\n'):
-                if '[mysql]' in line and 'host:' in line:
+            for line in output.split("\n"):
+                if "[mysql]" in line and "host:" in line:
                     parts = line.split()
                     password = parts[-1]
-                    self.found_credentials.append({
-                        "service": "mysql",
-                        "username": username,
-                        "password": password,
-                        "target": target
-                    })
+                    self.found_credentials.append(
+                        {"service": "mysql", "username": username, "password": password, "target": target}
+                    )
                     self.log(f"Credential found! {username}:{password}", "success")
 
             self.results["mysql"] = {
                 "success": len(self.found_credentials) > 0,
                 "output": output,
-                "credentials": self.found_credentials
+                "credentials": self.found_credentials,
             }
 
             return output
@@ -622,22 +592,19 @@ class BruteForceModule:
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=600)
             output = result.stdout + result.stderr
 
-            for line in output.split('\n'):
-                if '[rdp]' in line and 'host:' in line:
+            for line in output.split("\n"):
+                if "[rdp]" in line and "host:" in line:
                     parts = line.split()
                     password = parts[-1]
-                    self.found_credentials.append({
-                        "service": "rdp",
-                        "username": username,
-                        "password": password,
-                        "target": target
-                    })
+                    self.found_credentials.append(
+                        {"service": "rdp", "username": username, "password": password, "target": target}
+                    )
                     self.log(f"Credential found! {username}:{password}", "success")
 
             self.results["rdp"] = {
                 "success": len(self.found_credentials) > 0,
                 "output": output,
-                "credentials": self.found_credentials
+                "credentials": self.found_credentials,
             }
 
             return output
@@ -690,7 +657,7 @@ class BruteForceModule:
             "success": any(c["service"] == "mssql" for c in self.found_credentials),
             "output": combined_output,
             "credentials": [c for c in self.found_credentials if c["service"] == "mssql"],
-            "users_tested": usernames
+            "users_tested": usernames,
         }
 
         self.is_running = False
@@ -738,7 +705,7 @@ class BruteForceModule:
             "success": any(c["service"] == "oracle" for c in self.found_credentials),
             "output": combined_output,
             "credentials": [c for c in self.found_credentials if c["service"] == "oracle"],
-            "users_tested": usernames
+            "users_tested": usernames,
         }
 
         self.is_running = False
@@ -786,7 +753,7 @@ class BruteForceModule:
             "success": any(c["service"] == "postgresql" for c in self.found_credentials),
             "output": combined_output,
             "credentials": [c for c in self.found_credentials if c["service"] == "postgresql"],
-            "users_tested": usernames
+            "users_tested": usernames,
         }
 
         self.is_running = False
@@ -804,7 +771,7 @@ class BruteForceModule:
         self.stats["services_tested"].append("redis")
 
         try:
-            with open(wordlist, 'r', errors='ignore') as f:
+            with open(wordlist, "r", errors="ignore") as f:
                 passwords = [line.strip() for line in f.readlines() if line.strip()]
         except FileNotFoundError:
             self.log(f"Wordlist not found: {wordlist}", "error")
@@ -825,12 +792,7 @@ class BruteForceModule:
                 output = result.stdout + result.stderr
 
                 if "+OK" in output:
-                    cred = {
-                        "service": "redis",
-                        "username": "",
-                        "password": password,
-                        "target": target
-                    }
+                    cred = {"service": "redis", "username": "", "password": password, "target": target}
                     found.append(cred)
                     self.found_credentials.append(cred)
                     self.stats["successful_attempts"] += 1
@@ -842,11 +804,7 @@ class BruteForceModule:
                 self.stats["failed_attempts"] += 1
                 continue
 
-        self.results["redis"] = {
-            "success": len(found) > 0,
-            "credentials": found,
-            "total_attempts": len(passwords)
-        }
+        self.results["redis"] = {"success": len(found) > 0, "credentials": found, "total_attempts": len(passwords)}
 
         self.is_running = False
         self.stats["end_time"] = datetime.now().isoformat()
@@ -865,7 +823,7 @@ class BruteForceModule:
         self.stats["services_tested"].append("mongodb")
 
         try:
-            with open(wordlist, 'r', errors='ignore') as f:
+            with open(wordlist, "r", errors="ignore") as f:
                 passwords = [line.strip() for line in f.readlines() if line.strip()]
         except FileNotFoundError:
             self.log(f"Wordlist not found: {wordlist}", "error")
@@ -889,12 +847,7 @@ class BruteForceModule:
                     output = result.stdout + result.stderr
 
                     if "authenticated" in output and '"ok" : 1' in output:
-                        cred = {
-                            "service": "mongodb",
-                            "username": username,
-                            "password": password,
-                            "target": target
-                        }
+                        cred = {"service": "mongodb", "username": username, "password": password, "target": target}
                         found.append(cred)
                         self.found_credentials.append(cred)
                         self.stats["successful_attempts"] += 1
@@ -906,11 +859,7 @@ class BruteForceModule:
                     self.stats["failed_attempts"] += 1
                     continue
 
-        self.results["mongodb"] = {
-            "success": len(found) > 0,
-            "credentials": found,
-            "users_tested": usernames
-        }
+        self.results["mongodb"] = {"success": len(found) > 0, "credentials": found, "users_tested": usernames}
 
         self.is_running = False
         self.stats["end_time"] = datetime.now().isoformat()
@@ -920,9 +869,21 @@ class BruteForceModule:
         """SNMP community brute"""
         if community_strings is None:
             community_strings = [
-                "public", "private", "community", "manager", "admin",
-                "default", "test", "snmp", "secret", "password",
-                "monitoring", "read", "write", "access", "internal"
+                "public",
+                "private",
+                "community",
+                "manager",
+                "admin",
+                "default",
+                "test",
+                "snmp",
+                "secret",
+                "password",
+                "monitoring",
+                "read",
+                "write",
+                "access",
+                "internal",
             ]
 
         self.log(f"Starting SNMP community string brute force on {target}", "warning")
@@ -944,12 +905,7 @@ class BruteForceModule:
                 output = result.stdout + result.stderr
 
                 if "SNMPv2-MIB" in output and "No response" not in output:
-                    cred = {
-                        "service": "snmp",
-                        "username": "",
-                        "password": community,
-                        "target": target
-                    }
+                    cred = {"service": "snmp", "username": "", "password": community, "target": target}
                     found.append(cred)
                     self.found_credentials.append(cred)
                     self.stats["successful_attempts"] += 1
@@ -963,7 +919,7 @@ class BruteForceModule:
         self.results["snmp"] = {
             "success": len(found) > 0,
             "credentials": found,
-            "communities_tested": community_strings
+            "communities_tested": community_strings,
         }
 
         self.is_running = False
@@ -984,11 +940,7 @@ class BruteForceModule:
         output = self._run_hydra(target, "vnc", wordlist=wordlist)
         found = self._parse_hydra_output(output, "vnc", target)
 
-        self.results["vnc"] = {
-            "success": len(found) > 0,
-            "output": output,
-            "credentials": found
-        }
+        self.results["vnc"] = {"success": len(found) > 0, "output": output, "credentials": found}
 
         self.is_running = False
         self.stats["end_time"] = datetime.now().isoformat()
@@ -1035,7 +987,7 @@ class BruteForceModule:
             "success": any(c["service"] == "telnet" for c in self.found_credentials),
             "output": combined_output,
             "credentials": [c for c in self.found_credentials if c["service"] == "telnet"],
-            "users_tested": usernames
+            "users_tested": usernames,
         }
 
         self.is_running = False
@@ -1083,7 +1035,7 @@ class BruteForceModule:
             "success": any(c["service"] == "smtp" for c in self.found_credentials),
             "output": combined_output,
             "credentials": [c for c in self.found_credentials if c["service"] == "smtp"],
-            "users_tested": usernames
+            "users_tested": usernames,
         }
 
         self.is_running = False
@@ -1131,7 +1083,7 @@ class BruteForceModule:
             "success": any(c["service"] == "pop3" for c in self.found_credentials),
             "output": combined_output,
             "credentials": [c for c in self.found_credentials if c["service"] == "pop3"],
-            "users_tested": usernames
+            "users_tested": usernames,
         }
 
         self.is_running = False
@@ -1179,7 +1131,7 @@ class BruteForceModule:
             "success": any(c["service"] == "imap" for c in self.found_credentials),
             "output": combined_output,
             "credentials": [c for c in self.found_credentials if c["service"] == "imap"],
-            "users_tested": usernames
+            "users_tested": usernames,
         }
 
         self.is_running = False
@@ -1194,8 +1146,8 @@ class BruteForceModule:
         self.stats["services_tested"].append(f"credential_stuffing_{service}")
 
         try:
-            with open(credential_file, 'r', errors='ignore') as f:
-                credentials = [line.strip().split(':') for line in f.readlines() if ':' in line.strip()]
+            with open(credential_file, "r", errors="ignore") as f:
+                credentials = [line.strip().split(":") for line in f.readlines() if ":" in line.strip()]
         except FileNotFoundError:
             self.log(f"Credential file not found: {credential_file}", "error")
             self.is_running = False
@@ -1217,13 +1169,8 @@ class BruteForceModule:
                 result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
                 output = result.stdout + result.stderr
 
-                if f'[{service}]' in output and 'host:' in output:
-                    cred_entry = {
-                        "service": service,
-                        "username": username,
-                        "password": password,
-                        "target": target
-                    }
+                if f"[{service}]" in output and "host:" in output:
+                    cred_entry = {"service": service, "username": username, "password": password, "target": target}
                     found.append(cred_entry)
                     self.found_credentials.append(cred_entry)
                     self.stats["successful_attempts"] += 1
@@ -1237,7 +1184,7 @@ class BruteForceModule:
         self.results[f"credential_stuffing_{service}"] = {
             "success": len(found) > 0,
             "credentials": found,
-            "total_tested": len(credentials)
+            "total_tested": len(credentials),
         }
 
         self.is_running = False
@@ -1264,13 +1211,8 @@ class BruteForceModule:
                 result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
                 output = result.stdout + result.stderr
 
-                if f'[{service}]' in output and 'host:' in output:
-                    cred = {
-                        "service": service,
-                        "username": username,
-                        "password": password,
-                        "target": target
-                    }
+                if f"[{service}]" in output and "host:" in output:
+                    cred = {"service": service, "username": username, "password": password, "target": target}
                     found.append(cred)
                     self.found_credentials.append(cred)
                     self.stats["successful_attempts"] += 1
@@ -1285,7 +1227,7 @@ class BruteForceModule:
             "success": len(found) > 0,
             "credentials": found,
             "password_used": password,
-            "users_tested": usernames
+            "users_tested": usernames,
         }
 
         self.is_running = False
@@ -1326,14 +1268,17 @@ class BruteForceModule:
                 "failed_attempts": self.stats["failed_attempts"],
                 "success_rate": f"{success_rate:.2f}%",
                 "total_credentials_found": len(self.found_credentials),
-                "duration": self._calculate_duration()
+                "duration": self._calculate_duration(),
             },
             "credentials": self.found_credentials,
             "results_by_service": self._group_credentials_by_service(),
-            "raw_results": self.results
+            "raw_results": self.results,
         }
 
-        self.log(f"Report generated: {len(self.found_credentials)} credentials found in {self.stats['total_attempts']} attempts", "success")
+        self.log(
+            f"Report generated: {len(self.found_credentials)} credentials found in {self.stats['total_attempts']} attempts",
+            "success",
+        )
         return report
 
     def _calculate_duration(self):
