@@ -133,11 +133,38 @@ Fernet Token (encrypt/decrypt)
 
 ---
 
+## Supported Platforms
+
+BlackSentinel Strike is offensive-security tooling that orchestrates
+Linux-native utilities (nmap, hydra, masscan, aircrack-ng, and others), so
+platform support reflects what that toolchain can do:
+
+| OS | Support | Notes |
+|----|---------|-------|
+| **Linux** (Kali, Debian/Ubuntu, Arch, Fedora, …) | ✅ Full | Recommended. Kali Linux is the primary target; `deploy.sh` installs the toolchain automatically. |
+| **macOS** (Intel & Apple Silicon) | ⚠️ Partial | Core suite, CLI, encrypted vault and most scanners work via Homebrew. A few Linux-kernel-specific capabilities (raw 802.11 wireless injection, some `/proc`-based modules) are unavailable. |
+| **Windows** (10, 11, Server) | ✅ via WSL2 | Run inside **WSL2** with a Linux distribution (Kali-WSL recommended). Native Win32 is not supported — the suite depends on Linux security binaries and POSIX APIs. |
+
+### Windows (WSL2) quick start
+
+```powershell
+wsl --install -d kali-linux       # one-time; reboot if prompted
+wsl -d kali-linux                 # drop into the Linux shell
+```
+
+Then, inside the WSL shell, follow the Linux installation steps below.
+
+> The Python core, CLI (`blacksentinel_cli.py`), encrypted vault and test suite
+> are OS-independent and run anywhere Python 3.10+ is available. The platform
+> limits above apply only to the external attack tools the suite orchestrates.
+
+---
+
 ## Installation
 
 ### Prerequisites
 
-- macOS (tested on Apple Silicon) or Linux
+- Linux (recommended — Kali) or macOS (tested on Apple Silicon); Windows via WSL2
 - Python 3.10+
 - Homebrew (macOS) or apt (Linux)
 - Internet connection (for initial tool installation)
