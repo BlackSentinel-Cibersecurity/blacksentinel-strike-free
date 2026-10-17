@@ -3,8 +3,6 @@ Copyright (c) 2024-2025 BlackSentinel Strike - All Rights Reserved
 """
 
 import subprocess
-import os
-import time
 from datetime import datetime
 
 
@@ -19,13 +17,7 @@ class ForensicAdvanced:
     def run_command(self, cmd, timeout=30):
         """Execute a shell command and return output."""
         try:
-            result = subprocess.run(
-                cmd,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=timeout
-            )
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
             return result.stdout + result.stderr
         except subprocess.TimeoutExpired:
             return f"[TIMEOUT] Command timed out after {timeout}s: {cmd}"
@@ -146,7 +138,9 @@ class ForensicAdvanced:
     def memory_dump_acquisition(self, target):
         """Acquire a memory dump from target system."""
         try:
-            output = self.run_command(f"dumpit /output {target}/memory_dump.raw 2>/dev/null || liME /target {target}/memory_dump.raw")
+            output = self.run_command(
+                f"dumpit /output {target}/memory_dump.raw 2>/dev/null || liME /target {target}/memory_dump.raw"
+            )
             result = f"Memory Dump Acquisition\nTarget: {target}\n{output}"
             self.results["memory_dump"] = result
             return result
@@ -270,7 +264,9 @@ class ForensicAdvanced:
     def network_http_forensics(self, target):
         """Analyze HTTP traffic from network capture."""
         try:
-            output = self.run_command(f"tshark -r {target} -Y http -T fields -e http.request.method -e http.request.uri -e http.host 2>/dev/null")
+            output = self.run_command(
+                f"tshark -r {target} -Y http -T fields -e http.request.method -e http.request.uri -e http.host 2>/dev/null"
+            )
             result = f"HTTP Forensics\nTarget: {target}\n{output}"
             self.results["network_http"] = result
             return result
@@ -300,7 +296,9 @@ class ForensicAdvanced:
     def network_tls_forensics(self, target):
         """Analyze TLS/SSL handshake traffic."""
         try:
-            output = self.run_command(f"tshark -r {target} -Y tls.handshake -T fields -e tls.handshake.extensions_server_name -e tls.handshake.type 2>/dev/null")
+            output = self.run_command(
+                f"tshark -r {target} -Y tls.handshake -T fields -e tls.handshake.extensions_server_name -e tls.handshake.type 2>/dev/null"
+            )
             result = f"TLS Forensics\nTarget: {target}\n{output}"
             self.results["network_tls"] = result
             return result
@@ -310,7 +308,9 @@ class ForensicAdvanced:
     def network_suspicious_ips(self, target):
         """Identify suspicious IP addresses from traffic."""
         try:
-            output = self.run_command(f"tshark -r {target} -T fields -e ip.src -e ip.dst 2>/dev/null | sort | uniq -c | sort -rn | head -20")
+            output = self.run_command(
+                f"tshark -r {target} -T fields -e ip.src -e ip.dst 2>/dev/null | sort | uniq -c | sort -rn | head -20"
+            )
             result = f"Suspicious IPs (Top Talkers)\nTarget: {target}\n{output}"
             self.results["network_ips"] = result
             return result
@@ -320,7 +320,9 @@ class ForensicAdvanced:
     def network_ftp_forensics(self, target):
         """Analyze FTP traffic for credentials and commands."""
         try:
-            output = self.run_command(f"tshark -r {target} -Y ftp -T fields -e ftp.request.command -e ftp.request.arg 2>/dev/null")
+            output = self.run_command(
+                f"tshark -r {target} -Y ftp -T fields -e ftp.request.command -e ftp.request.arg 2>/dev/null"
+            )
             result = f"FTP Forensics\nTarget: {target}\n{output}"
             self.results["network_ftp"] = result
             return result
@@ -330,7 +332,9 @@ class ForensicAdvanced:
     def network_smtp_forensics(self, target):
         """Analyze SMTP/email traffic."""
         try:
-            output = self.run_command(f"tshark -r {target} -Y smtp -T fields -e smtp.req.parameter -e smtp.command 2>/dev/null")
+            output = self.run_command(
+                f"tshark -r {target} -Y smtp -T fields -e smtp.req.parameter -e smtp.command 2>/dev/null"
+            )
             result = f"SMTP Forensics\nTarget: {target}\n{output}"
             self.results["network_smtp"] = result
             return result
@@ -354,7 +358,9 @@ class ForensicAdvanced:
     def mobile_device_info(self, target):
         """Extract device information from mobile device."""
         try:
-            output = self.run_command(f"adb -s {target} shell getprop 2>/dev/null || ideviceinfo -u {target} 2>/dev/null")
+            output = self.run_command(
+                f"adb -s {target} shell getprop 2>/dev/null || ideviceinfo -u {target} 2>/dev/null"
+            )
             result = f"Mobile Device Info\nTarget: {target}\n{output}"
             self.results["mobile_info"] = result
             return result
@@ -364,7 +370,9 @@ class ForensicAdvanced:
     def mobile_app_list(self, target):
         """List installed applications on mobile device."""
         try:
-            output = self.run_command(f"adb -s {target} shell pm list packages -f 2>/dev/null || ideviceinstaller -l 2>/dev/null")
+            output = self.run_command(
+                f"adb -s {target} shell pm list packages -f 2>/dev/null || ideviceinstaller -l 2>/dev/null"
+            )
             result = f"Installed Applications\nTarget: {target}\n{output}"
             self.results["mobile_apps"] = result
             return result
@@ -394,7 +402,9 @@ class ForensicAdvanced:
     def mobile_contacts(self, target):
         """Extract contacts from mobile device."""
         try:
-            output = self.run_command(f"adb -s {target} shell content query --uri content://contacts/phones 2>/dev/null")
+            output = self.run_command(
+                f"adb -s {target} shell content query --uri content://contacts/phones 2>/dev/null"
+            )
             result = f"Contacts Extraction\nTarget: {target}\n{output}"
             self.results["mobile_contacts"] = result
             return result
@@ -404,7 +414,9 @@ class ForensicAdvanced:
     def mobile_browser_forensics(self, target):
         """Extract browser history from mobile device."""
         try:
-            output = self.run_command(f"adb -s {target} shell sqlite3 /data/data/com.android.chrome/databases/History 'SELECT url, title, last_visit_time FROM urls ORDER BY last_visit_time DESC LIMIT 100;' 2>/dev/null")
+            output = self.run_command(
+                f"adb -s {target} shell sqlite3 /data/data/com.android.chrome/databases/History 'SELECT url, title, last_visit_time FROM urls ORDER BY last_visit_time DESC LIMIT 100;' 2>/dev/null"
+            )
             result = f"Browser History Forensics\nTarget: {target}\n{output}"
             self.results["mobile_browser"] = result
             return result
@@ -424,7 +436,9 @@ class ForensicAdvanced:
     def mobile_screenshot(self, target, output_path="/tmp/evidence"):
         """Capture screenshot from mobile device."""
         try:
-            output = self.run_command(f"adb -s {target} shell screencap -p /sdcard/screenshot.png && adb -s {target} pull /sdcard/screenshot.png {output_path}/")
+            output = self.run_command(
+                f"adb -s {target} shell screencap -p /sdcard/screenshot.png && adb -s {target} pull /sdcard/screenshot.png {output_path}/"
+            )
             result = f"Screenshot Capture\nTarget: {target}\nOutput: {output_path}/screenshot.png\n{output}"
             self.results["mobile_screenshot"] = result
             return result
@@ -465,9 +479,9 @@ class ForensicAdvanced:
                 f.write(f"Generated: {datetime.now().isoformat()}\n")
                 f.write("=" * 80 + "\n\n")
                 for key, value in self.results.items():
-                    f.write(f"\n{'='*60}\n")
+                    f.write(f"\n{'=' * 60}\n")
                     f.write(f"SECTION: {key.upper()}\n")
-                    f.write(f"{'='*60}\n")
+                    f.write(f"{'=' * 60}\n")
                     f.write(f"{value}\n")
             return f"Report generated: {report_path}"
         except Exception as e:
@@ -477,32 +491,52 @@ class ForensicAdvanced:
         """List all available forensic modules."""
         modules = {
             "Disk Forensics": [
-                "disk_image_acquisition", "disk_partition_analysis",
-                "disk_filesystem_forensics", "disk_file_recovery",
-                "disk_volume_shadow_copy", "disk_boot_sector_analysis",
-                "disk_mbr_analysis", "disk_bad_sector_scan",
-                "disk_metadata_extraction", "disk_timeline_analysis"
+                "disk_image_acquisition",
+                "disk_partition_analysis",
+                "disk_filesystem_forensics",
+                "disk_file_recovery",
+                "disk_volume_shadow_copy",
+                "disk_boot_sector_analysis",
+                "disk_mbr_analysis",
+                "disk_bad_sector_scan",
+                "disk_metadata_extraction",
+                "disk_timeline_analysis",
             ],
             "Memory Forensics": [
-                "memory_dump_acquisition", "memory_process_list",
-                "memory_network_connections", "memory_dll_list",
-                "memory_handle_analysis", "memory_registry_analysis",
-                "memory_malfind", "memory_cmdline",
-                "memory_filescan", "memory_netscan_vol"
+                "memory_dump_acquisition",
+                "memory_process_list",
+                "memory_network_connections",
+                "memory_dll_list",
+                "memory_handle_analysis",
+                "memory_registry_analysis",
+                "memory_malfind",
+                "memory_cmdline",
+                "memory_filescan",
+                "memory_netscan_vol",
             ],
             "Network Forensics": [
-                "network_pcap_analysis", "network_dns_forensics",
-                "network_http_forensics", "network_packet_extraction",
-                "network_flow_analysis", "network_tls_forensics",
-                "network_suspicious_ips", "network_ftp_forensics",
-                "network_smtp_forensics", "network_statistical_summary"
+                "network_pcap_analysis",
+                "network_dns_forensics",
+                "network_http_forensics",
+                "network_packet_extraction",
+                "network_flow_analysis",
+                "network_tls_forensics",
+                "network_suspicious_ips",
+                "network_ftp_forensics",
+                "network_smtp_forensics",
+                "network_statistical_summary",
             ],
             "Mobile Forensics": [
-                "mobile_device_info", "mobile_app_list",
-                "mobile_sms_extraction", "mobile_call_log",
-                "mobile_contacts", "mobile_browser_forensics",
-                "mobile_wifi_forensics", "mobile_screenshot",
-                "mobile_file_extraction", "mobile_logcat_analysis"
-            ]
+                "mobile_device_info",
+                "mobile_app_list",
+                "mobile_sms_extraction",
+                "mobile_call_log",
+                "mobile_contacts",
+                "mobile_browser_forensics",
+                "mobile_wifi_forensics",
+                "mobile_screenshot",
+                "mobile_file_extraction",
+                "mobile_logcat_analysis",
+            ],
         }
         return modules

@@ -10,7 +10,6 @@ import subprocess
 import json
 import re
 import shutil
-from datetime import datetime
 
 
 def _require_tool(name):
@@ -38,9 +37,7 @@ class ReconAdvanced:
     def run_command(self, cmd, timeout=30):
         """Run a shell command safely, return combined output string."""
         try:
-            result = subprocess.run(
-                cmd, shell=True, capture_output=True, text=True, timeout=timeout
-            )
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
             output = result.stdout
             if result.stderr:
                 output += "\n[STDERR]\n" + result.stderr
@@ -109,6 +106,7 @@ class ReconAdvanced:
         self.log(f"[OSINT] Shodan query: {target}", "info")
         try:
             import os
+
             api_key = os.environ.get("SHODAN_API_KEY", "")
             if not api_key:
                 return "[ERROR] SHODAN_API_KEY environment variable not set"
@@ -156,8 +154,13 @@ class ReconAdvanced:
         """Search for social media profiles related to target."""
         self.log(f"[OSINT] Social media search: {target}", "info")
         sites = [
-            "twitter.com", "linkedin.com", "facebook.com", "instagram.com",
-            "github.com", "reddit.com", "youtube.com"
+            "twitter.com",
+            "linkedin.com",
+            "facebook.com",
+            "instagram.com",
+            "github.com",
+            "reddit.com",
+            "youtube.com",
         ]
         results = []
         for site in sites:
@@ -179,7 +182,7 @@ class ReconAdvanced:
         ]
         results = []
         for q in queries:
-            encoded = q.replace(" ", "+").replace('"', '%22')
+            encoded = q.replace(" ", "+").replace('"', "%22")
             cmd = f'curl -s "https://github.com/search?q={encoded}&type=code" -o /dev/null -w "%{{http_code}}"'
             code = self.run_command(cmd, timeout=10)
             results.append(f"Query: {q} -> HTTP {code.strip()}")
@@ -274,10 +277,10 @@ class ReconAdvanced:
         except FileNotFoundError as e:
             return str(e)
         sources = {
-            "Google": f'dig +short {target} @8.8.8.8',
-            "Cloudflare": f'dig +short {target} @1.1.1.1',
-            "Quad9": f'dig +short {target} @9.9.9.9',
-            "OpenDNS": f'dig +short {target} @208.67.222.222',
+            "Google": f"dig +short {target} @8.8.8.8",
+            "Cloudflare": f"dig +short {target} @1.1.1.1",
+            "Quad9": f"dig +short {target} @9.9.9.9",
+            "OpenDNS": f"dig +short {target} @208.67.222.222",
         }
         results = []
         for name, cmd in sources.items():
@@ -307,8 +310,7 @@ class ReconAdvanced:
         if output.startswith("[ERROR]") or output.startswith("[TIMEOUT]"):
             return output
         interesting = []
-        keywords = ["NetRange", "CIDR", "OrgName", "OrgId", "NetName",
-                     "aut-num", "descr", "route", "origin"]
+        keywords = ["NetRange", "CIDR", "OrgName", "OrgId", "NetName", "aut-num", "descr", "route", "origin"]
         for line in output.splitlines():
             if any(kw in line for kw in keywords):
                 interesting.append(line.strip())
@@ -322,7 +324,7 @@ class ReconAdvanced:
         except FileNotFoundError as e:
             return str(e)
         host = target.split("//")[-1].split("/")[0].split(":")[0]
-        cmd = f'echo | openssl s_client -servername {host} -connect {host}:443 2>/dev/null | openssl x509 -noout -subject -issuer -dates -serial -fingerprint'
+        cmd = f"echo | openssl s_client -servername {host} -connect {host}:443 2>/dev/null | openssl x509 -noout -subject -issuer -dates -serial -fingerprint"
         output = self.run_command(cmd, timeout=15)
         return output if output and not output.startswith("[ERROR]") else f"No SSL certificate info for {target}"
 
@@ -384,12 +386,30 @@ class ReconAdvanced:
         except FileNotFoundError as e:
             return str(e)
         if selectors is None:
-            selectors = ["default", "google", "selector1", "selector2", "dkim", "s1", "s2", "mandrill", "k1", "everlytickey1", "everlytickey2", "mail"]
+            selectors = [
+                "default",
+                "google",
+                "selector1",
+                "selector2",
+                "dkim",
+                "s1",
+                "s2",
+                "mandrill",
+                "k1",
+                "everlytickey1",
+                "everlytickey2",
+                "mail",
+            ]
         results = []
         for sel in selectors:
             cmd = f"dig +short TXT {sel}._domainkey.{target}"
             output = self.run_command(cmd, timeout=8)
-            if output and not output.startswith("[ERROR]") and not output.startswith("[TIMEOUT]") and "no servers" not in output.lower():
+            if (
+                output
+                and not output.startswith("[ERROR]")
+                and not output.startswith("[TIMEOUT]")
+                and "no servers" not in output.lower()
+            ):
                 results.append(f"[{sel}._domainkey] {output.strip()}")
         return "\n".join(results) if results else "No DKIM records found"
 
@@ -484,7 +504,9 @@ class ReconAdvanced:
         try:
             chromium = _require_tool("chromium") or _require_tool("chromium-browser") or _require_tool("google-chrome")
             out = f"/tmp/screenshot_{target.replace('/', '_').replace(':', '_')}.png"
-            cmd = f'{chromium} --headless --disable-gpu --screenshot="{out}" --window-size=1920,1080 "{url}" 2>/dev/null'
+            cmd = (
+                f'{chromium} --headless --disable-gpu --screenshot="{out}" --window-size=1920,1080 "{url}" 2>/dev/null'
+            )
             self.run_command(cmd, timeout=30)
             return f"Screenshot saved to {out}"
         except FileNotFoundError:
@@ -518,10 +540,14 @@ class ReconAdvanced:
         if output.startswith("[ERROR]") or output.startswith("[TIMEOUT]"):
             return output
         security_headers = [
-            "Strict-Transport-Security", "X-Frame-Options",
-            "X-Content-Type-Options", "X-XSS-Protection",
-            "Content-Security-Policy", "X-Permitted-Cross-Domain-Policies",
-            "Referrer-Policy", "Permissions-Policy"
+            "Strict-Transport-Security",
+            "X-Frame-Options",
+            "X-Content-Type-Options",
+            "X-XSS-Protection",
+            "Content-Security-Policy",
+            "X-Permitted-Cross-Domain-Policies",
+            "Referrer-Policy",
+            "Permissions-Policy",
         ]
         found = []
         missing = []
@@ -586,6 +612,7 @@ class ReconAdvanced:
         self.log(f"[NET] Traceroute: {target}", "info")
         try:
             import platform
+
             system = platform.system()
             if system == "Darwin":
                 cmd = f"traceroute -m 30 {target}"
@@ -620,7 +647,7 @@ class ReconAdvanced:
             ports = [21, 22, 23, 25, 53, 80, 110, 143, 443, 993, 995, 3306, 3389, 5432, 8080, 8443]
         results = []
         for port in ports:
-            cmd = f"bash -c 'echo "" | timeout 5 nc -w 3 {target} {port} 2>/dev/null'"
+            cmd = "bash -c 'echo  | timeout 5 nc -w 3 {target} {port} 2>/dev/null'"
             banner = self.run_command(cmd, timeout=8).strip()
             if banner and not banner.startswith("[ERROR]") and not banner.startswith("[TIMEOUT]"):
                 first_line = banner.splitlines()[0] if banner else ""
@@ -758,9 +785,9 @@ class ReconAdvanced:
         for section_name, runner in sections.items():
             try:
                 report = runner(target)
-                full_report.append(f"{'='*60}\n  {section_name} RECON\n{'='*60}\n{report}")
+                full_report.append(f"{'=' * 60}\n  {section_name} RECON\n{'=' * 60}\n{report}")
             except Exception as e:
-                full_report.append(f"{'='*60}\n  {section_name} RECON\n{'='*60}\n[ERROR] {e}")
+                full_report.append(f"{'=' * 60}\n  {section_name} RECON\n{'=' * 60}\n[ERROR] {e}")
         self.results["full_report"] = "\n\n".join(full_report)
         self.log(f"Full advanced recon complete for {target}", "success")
         return self.results["full_report"]

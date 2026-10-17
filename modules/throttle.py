@@ -26,9 +26,7 @@ class RateLimiter:
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._counters: Dict[str, Dict[str, List[float]]] = defaultdict(
-            lambda: defaultdict(list)
-        )
+        self._counters: Dict[str, Dict[str, List[float]]] = defaultdict(lambda: defaultdict(list))
         self._limits: Dict[str, Dict[str, Tuple[int, int]]] = defaultdict(dict)
         self._global_limits: Dict[str, Tuple[int, int]] = {}
         self._total_checks = 0
@@ -50,9 +48,7 @@ class RateLimiter:
                     data = json.load(fh)
                 for target, actions in data.items():
                     for action, timestamps in actions.items():
-                        self._counters[target][action] = [
-                            float(ts) for ts in timestamps
-                        ]
+                        self._counters[target][action] = [float(ts) for ts in timestamps]
             except (json.JSONDecodeError, KeyError, TypeError):
                 pass
 
@@ -123,9 +119,7 @@ class RateLimiter:
     def _evict(self, target: str, action: str, window: int) -> None:
         """Remove timestamps outside the current sliding window."""
         cutoff = time.time() - window
-        self._counters[target][action] = [
-            ts for ts in self._counters[target][action] if ts > cutoff
-        ]
+        self._counters[target][action] = [ts for ts in self._counters[target][action] if ts > cutoff]
 
     # ------------------------------------------------------------------
     # Public API
@@ -230,15 +224,9 @@ class RateLimiter:
     def get_stats(self) -> Dict[str, Any]:
         """Return high-level statistics."""
         with self._lock:
-            total_actions = sum(
-                len(ts)
-                for actions in self._counters.values()
-                for ts in actions.values()
-            )
+            total_actions = sum(len(ts) for actions in self._counters.values() for ts in actions.values())
             unique_targets = len(self._counters)
-            unique_pairs = sum(
-                len(actions) for actions in self._counters.values()
-            )
+            unique_pairs = sum(len(actions) for actions in self._counters.values())
             return {
                 "total_checks": self._total_checks,
                 "total_allowed": self._total_allowed,

@@ -8,9 +8,6 @@ Copyright (c) 2024-2025 BlackSentinel Strike - All Rights Reserved
 
 import subprocess
 import os
-import re
-import hashlib
-import time
 import shutil
 import glob
 from datetime import datetime
@@ -31,9 +28,7 @@ class RootkitDetection:
     def run_command(self, cmd, timeout=30):
         """Execute a shell command and return stdout."""
         try:
-            result = subprocess.run(
-                cmd, shell=True, capture_output=True, text=True, timeout=timeout
-            )
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
             return result.stdout.strip()
         except subprocess.TimeoutExpired:
             return "TIMEOUT: Command exceeded time limit"
@@ -124,7 +119,7 @@ class RootkitDetection:
 
         cmdline_check = self.run_command(
             "for pid in $(ls /proc/ | grep '^[0-9]' | head -30); do "
-            "if [ ! -r /proc/$pid/cmdline ]; then echo \"PID $pid cmdline not readable\"; fi; done"
+            'if [ ! -r /proc/$pid/cmdline ]; then echo "PID $pid cmdline not readable"; fi; done'
         )
         if cmdline_check:
             results.append(f"Unreadable cmdlines: {cmdline_check}")
@@ -150,9 +145,7 @@ class RootkitDetection:
         if dotdir_check:
             results.append(f"Suspicious hidden directories: {dotdir_check}")
 
-        suid_check = self.run_command(
-            "find /tmp /var/tmp /dev/shm -perm -4000 2>/dev/null | head -10"
-        )
+        suid_check = self.run_command("find /tmp /var/tmp /dev/shm -perm -4000 2>/dev/null | head -10")
         if suid_check:
             results.append(f"SUID files in temp directories: {suid_check}")
 
@@ -173,27 +166,19 @@ class RootkitDetection:
         """Detect process injection via /proc/maps analysis."""
         results = []
 
-        suspicious_maps = self.run_command(
-            "grep -r 'rwx.*anon' /proc/*/maps 2>/dev/null | head -30"
-        )
+        suspicious_maps = self.run_command("grep -r 'rwx.*anon' /proc/*/maps 2>/dev/null | head -30")
         if suspicious_maps:
             results.append(f"Anonymous executable mappings:\n{suspicious_maps}")
 
-        memfd_check = self.run_command(
-            "ls -la /proc/*/fd/ 2>/dev/null | grep memfd | head -20"
-        )
+        memfd_check = self.run_command("ls -la /proc/*/fd/ 2>/dev/null | grep memfd | head -20")
         if memfd_check:
             results.append(f"memfd file descriptors detected:\n{memfd_check}")
 
-        deleted_maps = self.run_command(
-            "grep 'deleted' /proc/*/maps 2>/dev/null | head -30"
-        )
+        deleted_maps = self.run_command("grep 'deleted' /proc/*/maps 2>/dev/null | head -30")
         if deleted_maps:
             results.append(f"Deleted file mappings:\n{deleted_maps}")
 
-        heap_exec = self.run_command(
-            "grep -E 'rw-p.*heap' /proc/*/maps 2>/dev/null | grep -v grep | head -10"
-        )
+        heap_exec = self.run_command("grep -E 'rw-p.*heap' /proc/*/maps 2>/dev/null | grep -v grep | head -10")
         if heap_exec:
             results.append(f"Writable heap segments: {heap_exec}")
 
@@ -201,7 +186,7 @@ class RootkitDetection:
             "grep -l 'TracerPid' /proc/*/status 2>/dev/null | while read f; do "
             "pid=$(echo $f | cut -d/ -f3); "
             "tracer=$(grep TracerPid $f | awk '{print $2}'); "
-            "if [ \"$tracer\" != \"0\" ]; then echo \"PID $pid traced by PID $tracer\"; fi; done"
+            'if [ "$tracer" != "0" ]; then echo "PID $pid traced by PID $tracer"; fi; done'
         )
         if ptrace_check:
             results.append(f"Processes being traced: {ptrace_check}")
@@ -217,15 +202,11 @@ class RootkitDetection:
         if preload_check and "No such file" not in preload_check:
             results.append(f"Active /etc/ld.so.preload: {preload_check}")
 
-        ld_path = self.run_command(
-            "echo $LD_LIBRARY_PATH; echo $LD_PRELOAD; echo $LD_ELF_LIBRARY_PATH"
-        )
+        ld_path = self.run_command("echo $LD_LIBRARY_PATH; echo $LD_PRELOAD; echo $LD_ELF_LIBRARY_PATH")
         if ld_path:
             results.append(f"Loader env vars: {ld_path}")
 
-        loaded_libs = self.run_command(
-            "grep -h '\\.so' /proc/[0-9]*/maps 2>/dev/null | sort -u | head -40"
-        )
+        loaded_libs = self.run_command("grep -h '\\.so' /proc/[0-9]*/maps 2>/dev/null | sort -u | head -40")
         if loaded_libs:
             results.append(f"Unique loaded shared objects:\n{loaded_libs}")
 
@@ -233,9 +214,7 @@ class RootkitDetection:
         if ld_conf:
             results.append(f"ld.so.conf contents:\n{ld_conf}")
 
-        custom_paths = self.run_command(
-            "grep -r '^include' /etc/ld.so.conf.d/ 2>/dev/null"
-        )
+        custom_paths = self.run_command("grep -r '^include' /etc/ld.so.conf.d/ 2>/dev/null")
         if custom_paths:
             results.append(f"ld.so.conf.d includes: {custom_paths}")
 
@@ -266,9 +245,7 @@ class RootkitDetection:
         if cron_suspicious:
             results.append(f"Suspicious cron jobs: {cron_suspicious}")
 
-        systemd_user = self.run_command(
-            "find ~/.config/systemd/user -name '*.service' 2>/dev/null | head -10"
-        )
+        systemd_user = self.run_command("find ~/.config/systemd/user -name '*.service' 2>/dev/null | head -10")
         if systemd_user:
             results.append(f"User systemd services: {systemd_user}")
 
@@ -313,15 +290,11 @@ class RootkitDetection:
         if group_check:
             results.append(f"Groups with GID 0: {group_check}")
 
-        sudo_check = self.run_command(
-            "grep -v '^#' /etc/sudoers 2>/dev/null | grep -E 'ALL|NOPASSWD' | head -10"
-        )
+        sudo_check = self.run_command("grep -v '^#' /etc/sudoers 2>/dev/null | grep -E 'ALL|NOPASSWD' | head -10")
         if sudo_check:
             results.append(f"Sudoers entries: {sudo_check}")
 
-        authorized_keys = self.run_command(
-            "find /home -name 'authorized_keys' -exec ls -la {} \\; 2>/dev/null"
-        )
+        authorized_keys = self.run_command("find /home -name 'authorized_keys' -exec ls -la {} \\; 2>/dev/null")
         if authorized_keys:
             results.append(f"SSH authorized_keys files:\n{authorized_keys}")
 
@@ -341,10 +314,18 @@ class RootkitDetection:
             results.append(f"SGID binaries:\n{sgid_files}")
 
         known_good = {
-            "/usr/bin/sudo", "/usr/bin/su", "/usr/bin/passwd", "/usr/bin/chsh",
-            "/usr/bin/chfn", "/usr/bin/newgrp", "/usr/bin/gpasswd",
-            "/usr/bin/mount", "/usr/bin/umount", "/usr/bin/fusermount",
-            "/usr/lib/openssh/ssh-keysign", "/usr/bin/pkexec"
+            "/usr/bin/sudo",
+            "/usr/bin/su",
+            "/usr/bin/passwd",
+            "/usr/bin/chsh",
+            "/usr/bin/chfn",
+            "/usr/bin/newgrp",
+            "/usr/bin/gpasswd",
+            "/usr/bin/mount",
+            "/usr/bin/umount",
+            "/usr/bin/fusermount",
+            "/usr/lib/openssh/ssh-keysign",
+            "/usr/bin/pkexec",
         }
 
         if suid_files:
@@ -365,15 +346,11 @@ class RootkitDetection:
         """Detect netcat-based backdoors and reverse shells."""
         results = []
 
-        nc_procs = self.run_command(
-            "ps aux | grep -E '(nc |ncat |netcat |socat )' | grep -v grep"
-        )
+        nc_procs = self.run_command("ps aux | grep -E '(nc |ncat |netcat |socat )' | grep -v grep")
         if nc_procs:
             results.append(f"Netcat/socat processes:\n{nc_procs}")
 
-        reverse_shells = self.run_command(
-            "ps aux | grep -E '(bash -i|/dev/tcp|mkfifo|nc -e|ncat -e)' | grep -v grep"
-        )
+        reverse_shells = self.run_command("ps aux | grep -E '(bash -i|/dev/tcp|mkfifo|nc -e|ncat -e)' | grep -v grep")
         if reverse_shells:
             results.append(f"Possible reverse shells:\n{reverse_shells}")
 
@@ -385,9 +362,7 @@ class RootkitDetection:
         if established:
             results.append(f"Established connections:\n{established}")
 
-        nc_cron = self.run_command(
-            "grep -rn 'nc\\|netcat\\|ncat' /etc/cron* 2>/dev/null"
-        )
+        nc_cron = self.run_command("grep -rn 'nc\\|netcat\\|ncat' /etc/cron* 2>/dev/null")
         if nc_cron:
             results.append(f"Netcat in cron: {nc_cron}")
 
@@ -424,9 +399,7 @@ class RootkitDetection:
         if agent_check:
             results.append(f"SSH agent sockets: {agent_check}")
 
-        sshd_modified = self.run_command(
-            "rpm -V openssh-server 2>/dev/null || dpkg -V openssh-server 2>/dev/null"
-        )
+        sshd_modified = self.run_command("rpm -V openssh-server 2>/dev/null || dpkg -V openssh-server 2>/dev/null")
         if sshd_modified:
             results.append(f"SSH package verification:\n{sshd_modified}")
 
@@ -438,13 +411,20 @@ class RootkitDetection:
         results = []
 
         known_rootkit_paths = [
-            "/usr/share/.0wn", "/dev/.udev/rules.d",
-            "/etc/cron.d/.quiet", "/usr/lib/.libhide",
-            "/usr/lib/security", "/usr/share/.cinik",
-            "/etc/ld.so.preload", "/dev/.udev/.udev.tdb",
-            "/var/tmp/.bash_history", "/dev/shm/.x",
-            "/tmp/.ICE-unix/.x", "/tmp/.X11-unix/.x",
-            "/dev/.init.d", "/dev/.hg",
+            "/usr/share/.0wn",
+            "/dev/.udev/rules.d",
+            "/etc/cron.d/.quiet",
+            "/usr/lib/.libhide",
+            "/usr/lib/security",
+            "/usr/share/.cinik",
+            "/etc/ld.so.preload",
+            "/dev/.udev/.udev.tdb",
+            "/var/tmp/.bash_history",
+            "/dev/shm/.x",
+            "/tmp/.ICE-unix/.x",
+            "/tmp/.X11-unix/.x",
+            "/dev/.init.d",
+            "/dev/.hg",
         ]
 
         for path in known_rootkit_paths:
@@ -452,9 +432,7 @@ class RootkitDetection:
                 stat_info = self.run_command(f"ls -la {path} 2>/dev/null")
                 results.append(f"Rootkit artifact found: {path} - {stat_info}")
 
-        dev_hidden = self.run_command(
-            "ls -la /dev/ 2>/dev/null | grep -E '^\\.' | head -20"
-        )
+        dev_hidden = self.run_command("ls -la /dev/ 2>/dev/null | grep -E '^\\.' | head -20")
         if dev_hidden:
             results.append(f"Hidden entries in /dev:\n{dev_hidden}")
 
@@ -485,15 +463,11 @@ class RootkitDetection:
         if input_access:
             results.append(f"Input device access:\n{input_access}")
 
-        libhook = self.run_command(
-            "find /usr/lib /lib -name '*hook*' -o -name '*keylog*' 2>/dev/null | head -10"
-        )
+        libhook = self.run_command("find /usr/lib /lib -name '*hook*' -o -name '*keylog*' 2>/dev/null | head -10")
         if libhook:
             results.append(f"Hook/keylog libraries: {libhook}")
 
-        xkeylog = self.run_command(
-            "ps aux | grep -iE '(xinput|xev|xtrace|xkeysniffer)' | grep -v grep"
-        )
+        xkeylog = self.run_command("ps aux | grep -iE '(xinput|xev|xtrace|xkeysniffer)' | grep -v grep")
         if xkeylog:
             results.append(f"X11 input monitoring: {xkeylog}")
 
@@ -504,9 +478,7 @@ class RootkitDetection:
         """Detect timestomping by comparing filesystem timestamps."""
         results = []
 
-        recent_bins = self.run_command(
-            "find /usr/bin /usr/sbin /bin /sbin -mtime -1 -type f 2>/dev/null | head -20"
-        )
+        recent_bins = self.run_command("find /usr/bin /usr/sbin /bin /sbin -mtime -1 -type f 2>/dev/null | head -20")
         if recent_bins:
             results.append(f"Recently modified system binaries:\n{recent_bins}")
 
@@ -517,9 +489,7 @@ class RootkitDetection:
                 if stat_out:
                     results.append(f"Timestamp for {f}:\n{stat_out}")
 
-        future_files = self.run_command(
-            "find / -mtime -365 -type f -newer /tmp 2>/dev/null | head -10"
-        )
+        future_files = self.run_command("find / -mtime -365 -type f -newer /tmp 2>/dev/null | head -10")
         if future_files:
             results.append(f"Files with unusual timestamps:\n{future_files}")
 
@@ -586,9 +556,7 @@ class RootkitDetection:
         if unsigned:
             results.append(f"Unsigned kernel modules: {unsigned}")
 
-        dmesg_modules = self.run_command(
-            "dmesg 2>/dev/null | grep -iE '(module|insmod|modprobe)' | tail -20"
-        )
+        dmesg_modules = self.run_command("dmesg 2>/dev/null | grep -iE '(module|insmod|modprobe)' | tail -20")
         if dmesg_modules:
             results.append(f"Module activity in dmesg:\n{dmesg_modules}")
 
@@ -599,9 +567,7 @@ class RootkitDetection:
         """Detect hidden kernel modules via multiple methods."""
         results = []
 
-        proc_mods = self.run_command(
-            "awk '{print $1}' /proc/modules 2>/dev/null | sort"
-        )
+        proc_mods = self.run_command("awk '{print $1}' /proc/modules 2>/dev/null | sort")
         sysfs_mods = self.run_command("ls /sys/module/ 2>/dev/null | sort")
         if proc_mods and sysfs_mods:
             proc_set = set(proc_mods.strip().split("\n"))
@@ -615,9 +581,7 @@ class RootkitDetection:
             results.append(f"Kernel tainted value: {taint}")
             results.append("Possible reasons: unsigned module loaded, OOPS, proprietary module")
 
-        syscall_info = self.run_command(
-            "cat /proc/kallsyms 2>/dev/null | grep -i 'sys_call_table' | head -5"
-        )
+        syscall_info = self.run_command("cat /proc/kallsyms 2>/dev/null | grep -i 'sys_call_table' | head -5")
         if syscall_info:
             results.append(f"Syscall table info: {syscall_info}")
 
@@ -640,9 +604,7 @@ class RootkitDetection:
         if kconfig:
             results.append(f"Kernel security config:\n{kconfig}")
 
-        secure_boot = self.run_command(
-            "mokutil --sb-state 2>/dev/null || echo 'mokutil not available'"
-        )
+        secure_boot = self.run_command("mokutil --sb-state 2>/dev/null || echo 'mokutil not available'")
         results.append(f"Secure Boot: {secure_boot}")
 
         iommu = self.run_command("dmesg 2>/dev/null | grep -i iommu | head -5")
@@ -666,21 +628,15 @@ class RootkitDetection:
         if syscall_table:
             results.append(f"Syscall table: {syscall_table}")
 
-        hooks_check = self.run_command(
-            "cat /proc/kallsyms 2>/dev/null | grep -iE '(hooked|hook|intercept)' | head -10"
-        )
+        hooks_check = self.run_command("cat /proc/kallsyms 2>/dev/null | grep -iE '(hooked|hook|intercept)' | head -10")
         if hooks_check:
             results.append(f"Hook-related symbols: {hooks_check}")
 
-        hook_dmesg = self.run_command(
-            "dmesg 2>/dev/null | grep -iE '(hook|syscall|table)' | tail -10"
-        )
+        hook_dmesg = self.run_command("dmesg 2>/dev/null | grep -iE '(hook|syscall|table)' | tail -10")
         if hook_dmesg:
             results.append(f"Hook-related dmesg:\n{hook_dmesg}")
 
-        ftrace = self.run_command(
-            "cat /sys/kernel/debug/tracing/set_ftrace_filter 2>/dev/null | head -10"
-        )
+        ftrace = self.run_command("cat /sys/kernel/debug/tracing/set_ftrace_filter 2>/dev/null | head -10")
         if ftrace and ftrace.strip():
             results.append(f"Ftrace filter active: {ftrace}")
 
@@ -692,8 +648,16 @@ class RootkitDetection:
         results = []
 
         known_signatures = [
-            "adore", "enyelkm", "hideLKM", "suckit", "rial",
-            "kernvac", "knark", "reptile", "diamorphine", "kovid",
+            "adore",
+            "enyelkm",
+            "hideLKM",
+            "suckit",
+            "rial",
+            "kernvac",
+            "knark",
+            "reptile",
+            "diamorphine",
+            "kovid",
         ]
 
         lsmod_out = self.run_command("lsmod 2>/dev/null")
@@ -702,22 +666,18 @@ class RootkitDetection:
                 if sig.lower() in lsmod_out.lower():
                     results.append(f"KNOWN ROOTKIT MODULE DETECTED: {sig}")
 
-        module_sizes = self.run_command(
-            "lsmod 2>/dev/null | awk 'NR>1 {print $1, $2}' | sort -k2 -n | head -20"
-        )
+        module_sizes = self.run_command("lsmod 2>/dev/null | awk 'NR>1 {print $1, $2}' | sort -k2 -n | head -20")
         if module_sizes:
             results.append(f"Module sizes:\n{module_sizes}")
 
-        recent_modules = self.run_command(
-            "dmesg 2>/dev/null | grep -i 'insmod\\|modprobe' | tail -10"
-        )
+        recent_modules = self.run_command("dmesg 2>/dev/null | grep -i 'insmod\\|modprobe' | tail -10")
         if recent_modules:
             results.append(f"Recent module loads:\n{recent_modules}")
 
         orphan_modules = self.run_command(
             "find /lib/modules/$(uname -r) -name '*.ko' 2>/dev/null | while read m; do "
             "modname=$(basename $m .ko); "
-            "if ! grep -q $modname /proc/modules 2>/dev/null; then echo \"Unused: $m\"; fi; done | head -10"
+            'if ! grep -q $modname /proc/modules 2>/dev/null; then echo "Unused: $m"; fi; done | head -10'
         )
         if orphan_modules:
             results.append(f"Unused kernel modules: {orphan_modules}")
@@ -733,17 +693,13 @@ class RootkitDetection:
         if dmesg_output:
             results.append(f"Last dmesg entries:\n{dmesg_output}")
 
-        dmesg_restrict = self.run_command(
-            "cat /proc/sys/kernel/dmesg_restrict 2>/dev/null"
-        )
+        dmesg_restrict = self.run_command("cat /proc/sys/kernel/dmesg_restrict 2>/dev/null")
         results.append(f"dmesg_restrict: {dmesg_restrict}")
 
         dmesg_count = self.run_command("dmesg 2>/dev/null | wc -l")
         results.append(f"dmesg line count: {dmesg_count}")
 
-        journal_gaps = self.run_command(
-            "journalctl -k --since '1 hour ago' 2>/dev/null | tail -10"
-        )
+        journal_gaps = self.run_command("journalctl -k --since '1 hour ago' 2>/dev/null | tail -10")
         if journal_gaps:
             results.append(f"Recent kernel journal:\n{journal_gaps}")
 
@@ -758,9 +714,7 @@ class RootkitDetection:
         if idt_check:
             results.append(f"Interrupt info:\n{idt_check}")
 
-        irq_affinity = self.run_command(
-            "ls /proc/irq/*/smp_affinity_list 2>/dev/null | head -10"
-        )
+        irq_affinity = self.run_command("ls /proc/irq/*/smp_affinity_list 2>/dev/null | head -10")
         if irq_affinity:
             results.append(f"IRQ affinity entries: {irq_affinity}")
 
@@ -793,9 +747,7 @@ class RootkitDetection:
         if nft:
             results.append(f"nftables rules:\n{nft}")
 
-        nf_modules = self.run_command(
-            "lsmod 2>/dev/null | grep -i 'nf\\|ipt\\|ip6\\|nft'"
-        )
+        nf_modules = self.run_command("lsmod 2>/dev/null | grep -i 'nf\\|ipt\\|ip6\\|nft'")
         if nf_modules:
             results.append(f"Netfilter modules:\n{nf_modules}")
 
@@ -806,27 +758,19 @@ class RootkitDetection:
         """Detect kprobe-based hooking."""
         results = []
 
-        kprobes = self.run_command(
-            "cat /sys/kernel/debug/kprobes/list 2>/dev/null | head -20"
-        )
+        kprobes = self.run_command("cat /sys/kernel/debug/kprobes/list 2>/dev/null | head -20")
         if kprobes and kprobes.strip():
             results.append(f"Active kprobes:\n{kprobes}")
 
-        kprobe_events = self.run_command(
-            "cat /sys/kernel/debug/tracing/kprobe_events 2>/dev/null | head -20"
-        )
+        kprobe_events = self.run_command("cat /sys/kernel/debug/tracing/kprobe_events 2>/dev/null | head -20")
         if kprobe_events and kprobe_events.strip():
             results.append(f"Kprobe events:\n{kprobe_events}")
 
-        fentry = self.run_command(
-            "cat /sys/kernel/debug/tracing/set_ftrace_filter 2>/dev/null | head -10"
-        )
+        fentry = self.run_command("cat /sys/kernel/debug/tracing/set_ftrace_filter 2>/dev/null | head -10")
         if fentry and fentry.strip():
             results.append(f"Ftrace filter: {fentry}")
 
-        kretprobes = self.run_command(
-            "ls /sys/kernel/debug/tracing/events/kprobes/ 2>/dev/null | head -10"
-        )
+        kretprobes = self.run_command("ls /sys/kernel/debug/tracing/events/kprobes/ 2>/dev/null | head -10")
         if kretprobes:
             results.append(f"Kretprobe events: {kretprobes}")
 
@@ -893,20 +837,14 @@ class RootkitDetection:
         if tracing_progs:
             results.append(f"Tracing eBPF programs:\n{tracing_progs}")
 
-        perf_event = self.run_command(
-            "cat /proc/sys/kernel/perf_event_paranoid 2>/dev/null"
-        )
+        perf_event = self.run_command("cat /proc/sys/kernel/perf_event_paranoid 2>/dev/null")
         results.append(f"perf_event_paranoid: {perf_event}")
 
-        bpf_lsm = self.run_command(
-            "bpftool feature probe 2>/dev/null | grep -i lsm"
-        )
+        bpf_lsm = self.run_command("bpftool feature probe 2>/dev/null | grep -i lsm")
         if bpf_lsm:
             results.append(f"BPF LSM support: {bpf_lsm}")
 
-        cgroup_bpf = self.run_command(
-            "bpftool cgroup show 2>/dev/null | head -20"
-        )
+        cgroup_bpf = self.run_command("bpftool cgroup show 2>/dev/null | head -20")
         if cgroup_bpf:
             results.append(f"Cgroup BPF programs:\n{cgroup_bpf}")
 
@@ -925,9 +863,7 @@ class RootkitDetection:
         if map_details:
             results.append(f"Map dump sample:\n{map_details}")
 
-        large_maps = self.run_command(
-            "bpftool map show 2>/dev/null | awk '$4 > 1048576 {print}'"
-        )
+        large_maps = self.run_command("bpftool map show 2>/dev/null | awk '$4 > 1048576 {print}'")
         if large_maps:
             results.append(f"Large BPF maps (>1MB): {large_maps}")
 
@@ -942,9 +878,7 @@ class RootkitDetection:
         if cgroup_progs:
             results.append(f"Cgroup BPF:\n{cgroup_progs}")
 
-        cgroup_v2 = self.run_command(
-            "cat /proc/filesystems 2>/dev/null | grep cgroup"
-        )
+        cgroup_v2 = self.run_command("cat /proc/filesystems 2>/dev/null | grep cgroup")
         if cgroup_v2:
             results.append(f"Cgroup filesystems: {cgroup_v2}")
 
@@ -952,9 +886,7 @@ class RootkitDetection:
         if cgroup_mount:
             results.append(f"Cgroup mounts:\n{cgroup_mount}")
 
-        socket_prog = self.run_command(
-            "bpftool prog show 2>/dev/null | grep -i cgroup | head -10"
-        )
+        socket_prog = self.run_command("bpftool prog show 2>/dev/null | grep -i cgroup | head -10")
         if socket_prog:
             results.append(f"Cgroup socket programs:\n{socket_prog}")
 
@@ -969,27 +901,19 @@ class RootkitDetection:
         """Detect MBR-based bootkits."""
         results = []
 
-        mbr_check = self.run_command(
-            "dd if=/dev/sda bs=512 count=1 2>/dev/null | file -"
-        )
+        mbr_check = self.run_command("dd if=/dev/sda bs=512 count=1 2>/dev/null | file -")
         if mbr_check:
             results.append(f"MBR file signature: {mbr_check}")
 
-        mbr_hash = self.run_command(
-            "dd if=/dev/sda bs=512 count=1 2>/dev/null | sha256sum"
-        )
+        mbr_hash = self.run_command("dd if=/dev/sda bs=512 count=1 2>/dev/null | sha256sum")
         if mbr_hash:
             results.append(f"MBR SHA256: {mbr_hash}")
 
-        mbr_ascii = self.run_command(
-            "dd if=/dev/sda bs=512 count=1 2>/dev/null | xxd | head -32"
-        )
+        mbr_ascii = self.run_command("dd if=/dev/sda bs=512 count=1 2>/dev/null | xxd | head -32")
         if mbr_ascii:
             results.append(f"MBR hex dump:\n{mbr_ascii}")
 
-        boot_code = self.run_command(
-            "dd if=/dev/sda bs=1 skip=446 count=60 2>/dev/null | xxd | head -5"
-        )
+        boot_code = self.run_command("dd if=/dev/sda bs=1 skip=446 count=60 2>/dev/null | xxd | head -5")
         if boot_code:
             results.append(f"Boot code area: {boot_code}")
 
@@ -1004,20 +928,14 @@ class RootkitDetection:
         if esp_check:
             results.append(f"EFI System Partition:\n{esp_check}")
 
-        efivars = self.run_command(
-            "ls /sys/firmware/efi/efivars/ 2>/dev/null | head -20"
-        )
+        efivars = self.run_command("ls /sys/firmware/efi/efivars/ 2>/dev/null | head -20")
         if efivars:
             results.append(f"EFI variables:\n{efivars}")
 
-        secure_boot = self.run_command(
-            "mokutil --sb-state 2>/dev/null || echo 'Secure Boot check unavailable'"
-        )
+        secure_boot = self.run_command("mokutil --sb-state 2>/dev/null || echo 'Secure Boot check unavailable'")
         results.append(f"Secure Boot state: {secure_boot}")
 
-        efi_bins = self.run_command(
-            "find /boot/efi -name '*.efi' -exec sha256sum {} \\; 2>/dev/null | head -10"
-        )
+        efi_bins = self.run_command("find /boot/efi -name '*.efi' -exec sha256sum {} \\; 2>/dev/null | head -10")
         if efi_bins:
             results.append(f"EFI binary hashes:\n{efi_bins}")
 
@@ -1034,9 +952,7 @@ class RootkitDetection:
         """Detect GRUB-based boot modifications."""
         results = []
 
-        grub_cfg = self.run_command(
-            "cat /boot/grub/grub.cfg 2>/dev/null | head -40"
-        )
+        grub_cfg = self.run_command("cat /boot/grub/grub.cfg 2>/dev/null | head -40")
         if grub_cfg:
             results.append(f"GRUB config:\n{grub_cfg}")
 
@@ -1044,9 +960,7 @@ class RootkitDetection:
         if grub_mods:
             results.append(f"GRUB modules directory: {grub_mods}")
 
-        grub_pass = self.run_command(
-            "grep -i 'password' /boot/grub/grub.cfg 2>/dev/null"
-        )
+        grub_pass = self.run_command("grep -i 'password' /boot/grub/grub.cfg 2>/dev/null")
         if grub_pass:
             results.append(f"GRUB password: {grub_pass}")
 
@@ -1054,9 +968,7 @@ class RootkitDetection:
         if grubenv:
             results.append(f"GRUB environment:\n{grubenv}")
 
-        grub_hash = self.run_command(
-            "sha256sum /usr/sbin/grub-install /usr/bin/grub-mkconfig 2>/dev/null"
-        )
+        grub_hash = self.run_command("sha256sum /usr/sbin/grub-install /usr/bin/grub-mkconfig 2>/dev/null")
         if grub_hash:
             results.append(f"GRUB binary hashes:\n{grub_hash}")
 
@@ -1067,21 +979,15 @@ class RootkitDetection:
         """Detect initramfs-based bootkits."""
         results = []
 
-        initramfs = self.run_command(
-            "lsinitramfs /boot/initrd.img-$(uname -r) 2>/dev/null | head -30"
-        )
+        initramfs = self.run_command("lsinitramfs /boot/initrd.img-$(uname -r) 2>/dev/null | head -30")
         if initramfs:
             results.append(f"Initramfs contents sample:\n{initramfs}")
 
-        initramfs_hash = self.run_command(
-            "sha256sum /boot/initrd.img-$(uname -r) 2>/dev/null"
-        )
+        initramfs_hash = self.run_command("sha256sum /boot/initrd.img-$(uname -r) 2>/dev/null")
         if initramfs_hash:
             results.append(f"Initramfs hash: {initramfs_hash}")
 
-        init_script = self.run_command(
-            "lsinitramfs /boot/initrd.img-$(uname -r) 2>/dev/null | grep init"
-        )
+        init_script = self.run_command("lsinitramfs /boot/initrd.img-$(uname -r) 2>/dev/null | grep init")
         if init_script:
             results.append(f"Init scripts in initramfs: {init_script}")
 
@@ -1093,15 +999,11 @@ class RootkitDetection:
         results = []
 
         for dev in ["/dev/sda", "/dev/sdb", "/dev/nvme0n1"]:
-            vbr_check = self.run_command(
-                f"dd if={dev} bs=512 count=1 2>/dev/null | file -"
-            )
+            vbr_check = self.run_command(f"dd if={dev} bs=512 count=1 2>/dev/null | file -")
             if vbr_check and "ERROR" not in vbr_check:
                 results.append(f"{dev} VBR: {vbr_check}")
 
-            vbr_hash = self.run_command(
-                f"dd if={dev} bs=512 count=1 2>/dev/null | sha256sum"
-            )
+            vbr_hash = self.run_command(f"dd if={dev} bs=512 count=1 2>/dev/null | sha256sum")
             if vbr_hash and "ERROR" not in vbr_hash:
                 results.append(f"{dev} VBR hash: {vbr_hash}")
 
@@ -1116,39 +1018,27 @@ class RootkitDetection:
         """Detect firmware-level rootkits."""
         results = []
 
-        bios_date = self.run_command(
-            "dmidecode -s bios-release-date 2>/dev/null"
-        )
+        bios_date = self.run_command("dmidecode -s bios-release-date 2>/dev/null")
         if bios_date:
             results.append(f"BIOS date: {bios_date}")
 
-        bios_version = self.run_command(
-            "dmidecode -s bios-version 2>/dev/null"
-        )
+        bios_version = self.run_command("dmidecode -s bios-version 2>/dev/null")
         if bios_version:
             results.append(f"BIOS version: {bios_version}")
 
-        fw_ver = self.run_command(
-            "dmidecode -s system-manufacturer 2>/dev/null"
-        )
+        fw_ver = self.run_command("dmidecode -s system-manufacturer 2>/dev/null")
         if fw_ver:
             results.append(f"System manufacturer: {fw_ver}")
 
-        tpm = self.run_command(
-            "tpm2_getcap properties-fixed 2>/dev/null | head -10"
-        )
+        tpm = self.run_command("tpm2_getcap properties-fixed 2>/dev/null | head -10")
         if tpm:
             results.append(f"TPM capabilities:\n{tpm}")
 
-        intel_me = self.run_command(
-            "dmesg 2>/dev/null | grep -iE '(intel.me|amd.psp|management.engine)' | head -5"
-        )
+        intel_me = self.run_command("dmesg 2>/dev/null | grep -iE '(intel.me|amd.psp|management.engine)' | head -5")
         if intel_me:
             results.append(f"Intel ME/AMD PSP: {intel_me}")
 
-        spi = self.run_command(
-            "ls /dev/mem 2>/dev/null && echo '/dev/mem accessible - possible SPI flash access'"
-        )
+        spi = self.run_command("ls /dev/mem 2>/dev/null && echo '/dev/mem accessible - possible SPI flash access'")
         if spi:
             results.append(spi)
 
@@ -1212,9 +1102,7 @@ class RootkitDetection:
         except PermissionError:
             pass
 
-        find_out = self.run_command(
-            "find / -maxdepth 1 -type f -o -type d 2>/dev/null"
-        )
+        find_out = self.run_command("find / -maxdepth 1 -type f -o -type d 2>/dev/null")
         find_files = set()
         if find_out:
             for line in find_out.split("\n"):
@@ -1269,15 +1157,11 @@ class RootkitDetection:
 
         ss_minus_proc = len(ss_conns) - len(proc_conns)
         if abs(ss_minus_proc) > 2:
-            results.append(
-                f"Connection count mismatch: ss={len(ss_conns)}, /proc/net/tcp={len(proc_conns)}"
-            )
+            results.append(f"Connection count mismatch: ss={len(ss_conns)}, /proc/net/tcp={len(proc_conns)}")
 
         ss_minus_netstat = len(ss_conns) - len(netstat_conns)
         if abs(ss_minus_netstat) > 2:
-            results.append(
-                f"Connection count mismatch: ss={len(ss_conns)}, netstat={len(netstat_conns)}"
-            )
+            results.append(f"Connection count mismatch: ss={len(ss_conns)}, netstat={len(netstat_conns)}")
 
         if not results:
             results.append("No network connection view discrepancies detected")
@@ -1392,23 +1276,17 @@ class RootkitDetection:
         results = []
 
         lsof_out = self.run_command("lsof 2>/dev/null | tail -n +2 | wc -l")
-        fd_count = self.run_command(
-            "find /proc/*/fd -type l 2>/dev/null | wc -l"
-        )
+        fd_count = self.run_command("find /proc/*/fd -type l 2>/dev/null | wc -l")
 
         if lsof_out and fd_count:
             lsof_n = int(lsof_out) if lsof_out.isdigit() else 0
             fd_n = int(fd_count) if fd_count.isdigit() else 0
             if abs(lsof_n - fd_n) > 100:
-                results.append(
-                    f"Open file count mismatch: lsof={lsof_n}, /proc/fd={fd_n}"
-                )
+                results.append(f"Open file count mismatch: lsof={lsof_n}, /proc/fd={fd_n}")
             else:
                 results.append(f"Open file counts match: ~{lsof_n}")
 
-        deleted = self.run_command(
-            "lsof 2>/dev/null | grep '(deleted)' | head -20"
-        )
+        deleted = self.run_command("lsof 2>/dev/null | grep '(deleted)' | head -20")
         if deleted:
             results.append(f"Deleted but still open:\n{deleted}")
 
@@ -1419,9 +1297,7 @@ class RootkitDetection:
         """Compare memory usage from multiple sources."""
         results = []
 
-        meminfo = self.run_command(
-            "grep -E '(MemTotal|MemFree|MemAvailable|Buffers|Cached)' /proc/meminfo 2>/dev/null"
-        )
+        meminfo = self.run_command("grep -E '(MemTotal|MemFree|MemAvailable|Buffers|Cached)' /proc/meminfo 2>/dev/null")
         if meminfo:
             results.append(f"Memory info:\n{meminfo}")
 
@@ -1493,9 +1369,7 @@ class RootkitDetection:
         if getent_hosts:
             results.append(f"getent hosts: {getent_hosts}")
 
-        hosts_file = self.run_command(
-            "grep -v '^#' /etc/hosts 2>/dev/null | grep -v '^$'"
-        )
+        hosts_file = self.run_command("grep -v '^#' /etc/hosts 2>/dev/null | grep -v '^$'")
         if hosts_file:
             results.append(f"/etc/hosts:\n{hosts_file}")
 
@@ -1503,9 +1377,7 @@ class RootkitDetection:
         if dig_result:
             results.append(f"dig localhost: {dig_result}")
 
-        resolv = self.run_command(
-            "cat /etc/resolv.conf 2>/dev/null | grep -v '^#'"
-        )
+        resolv = self.run_command("cat /etc/resolv.conf 2>/dev/null | grep -v '^#'")
         if resolv:
             results.append(f"DNS resolvers:\n{resolv}")
 
@@ -1527,9 +1399,7 @@ class RootkitDetection:
                 if "=" in line:
                     env_vars.add(line.split("=")[0])
 
-        proc_environ = self.run_command(
-            "tr '\\0' '\\n' < /proc/1/environ 2>/dev/null | sort"
-        )
+        proc_environ = self.run_command("tr '\\0' '\\n' < /proc/1/environ 2>/dev/null | sort")
         proc_vars = set()
         if proc_environ:
             for line in proc_environ.split("\n"):
@@ -1566,9 +1436,7 @@ class RootkitDetection:
             if ldd_out and "not a dynamic" not in ldd_out:
                 results.append(f"Libraries for {binary}:\n{ldd_out}")
 
-        init_maps = self.run_command(
-            "grep '\\.so' /proc/1/maps 2>/dev/null | head -20"
-        )
+        init_maps = self.run_command("grep '\\.so' /proc/1/maps 2>/dev/null | head -20")
         if init_maps:
             results.append(f"PID 1 loaded libraries:\n{init_maps}")
 
@@ -1609,9 +1477,7 @@ class RootkitDetection:
                     for match in matches:
                         results.append(f"POSSIBLE ROOTKIT: {name} at {match}")
 
-        ko_files = self.run_command(
-            "find /lib/modules/$(uname -r) -name '*.ko' 2>/dev/null | head -20"
-        )
+        ko_files = self.run_command("find /lib/modules/$(uname -r) -name '*.ko' 2>/dev/null | head -20")
         if ko_files:
             for ko in ko_files.split("\n"):
                 if ko.strip():
@@ -1629,9 +1495,7 @@ class RootkitDetection:
         """Detect various stealth techniques used by rootkits."""
         results = []
 
-        name_check = self.run_command(
-            "ps -eo pid,comm | awk '$2 ~ /^[[:space:]]*$/' | head -10"
-        )
+        name_check = self.run_command("ps -eo pid,comm | awk '$2 ~ /^[[:space:]]*$/' | head -10")
         if name_check:
             results.append(f"Processes with empty names:\n{name_check}")
 
@@ -1639,14 +1503,10 @@ class RootkitDetection:
         if hidepid:
             results.append(f"hidepid mount option active: {hidepid}")
 
-        ptrace_check = self.run_command(
-            "cat /proc/sys/kernel/yama/ptrace_scope 2>/dev/null"
-        )
+        ptrace_check = self.run_command("cat /proc/sys/kernel/yama/ptrace_scope 2>/dev/null")
         results.append(f"ptrace_scope: {ptrace_check}")
 
-        ld_hide = self.run_command(
-            "readelf -d /bin/ls 2>/dev/null | grep -i 'NEEDED'"
-        )
+        ld_hide = self.run_command("readelf -d /bin/ls 2>/dev/null | grep -i 'NEEDED'")
         if ld_hide:
             results.append(f"Binary dynamic deps (ls):\n{ld_hide}")
 
@@ -1654,7 +1514,7 @@ class RootkitDetection:
             "for pid in $(ls /proc/ | grep '^[0-9]' | head -20); do "
             "comm=$(cat /proc/$pid/comm 2>/dev/null); "
             "cmdline=$(cat /proc/$pid/cmdline 2>/dev/null | tr '\\0' ' '); "
-            "if [ -n \"$comm\" ] && [ -n \"$cmdline\" ] && ! echo \"$cmdline\" | grep -q \"$comm\"; then "
+            'if [ -n "$comm" ] && [ -n "$cmdline" ] && ! echo "$cmdline" | grep -q "$comm"; then '
             "echo \"PID $pid: comm='$comm' cmdline='$cmdline'\"; fi; done 2>/dev/null"
         )
         if comm_check:
@@ -1673,27 +1533,19 @@ class RootkitDetection:
         if reverse_shells:
             results.append(f"Possible reverse shells:\n{reverse_shells}")
 
-        unusual_conns = self.run_command(
-            "ss -tnp 2>/dev/null | grep -E '(ESTABLISHED|SYN_SENT)' | head -20"
-        )
+        unusual_conns = self.run_command("ss -tnp 2>/dev/null | grep -E '(ESTABLISHED|SYN_SENT)' | head -20")
         if unusual_conns:
             results.append(f"Active connections:\n{unusual_conns}")
 
-        knocking = self.run_command(
-            "iptables -t mangle -L -n -v 2>/dev/null | head -20"
-        )
+        knocking = self.run_command("iptables -t mangle -L -n -v 2>/dev/null | head -20")
         if knocking:
             results.append(f"iptables mangle (port knocking):\n{knocking}")
 
-        unusual_listen = self.run_command(
-            "ss -tlnp 2>/dev/null | grep -v -E ':(22|80|443|53) '"
-        )
+        unusual_listen = self.run_command("ss -tlnp 2>/dev/null | grep -v -E ':(22|80|443|53) '")
         if unusual_listen:
             results.append(f"Unusual listening ports:\n{unusual_listen}")
 
-        dns_tunnel = self.run_command(
-            "ss -tnp 2>/dev/null | grep ':53 ' | head -10"
-        )
+        dns_tunnel = self.run_command("ss -tnp 2>/dev/null | grep ':53 ' | head -10")
         if dns_tunnel:
             results.append(f"DNS connections:\n{dns_tunnel}")
 
@@ -1704,33 +1556,23 @@ class RootkitDetection:
         """Detect container escape indicators."""
         results = []
 
-        container_check = self.run_command(
-            "cat /proc/1/cgroup 2>/dev/null | head -10"
-        )
+        container_check = self.run_command("cat /proc/1/cgroup 2>/dev/null | head -10")
         if container_check:
             results.append(f"Cgroup info:\n{container_check}")
 
-        docker_sock = self.run_command(
-            "ls -la /var/run/docker.sock 2>/dev/null"
-        )
+        docker_sock = self.run_command("ls -la /var/run/docker.sock 2>/dev/null")
         if docker_sock:
             results.append(f"Docker socket: {docker_sock}")
 
-        privileged = self.run_command(
-            "cat /proc/self/status 2>/dev/null | grep -i cap"
-        )
+        privileged = self.run_command("cat /proc/self/status 2>/dev/null | grep -i cap")
         if privileged:
             results.append(f"Capabilities:\n{privileged}")
 
-        host_access = self.run_command(
-            "ls /host 2>/dev/null && echo 'Host filesystem accessible'"
-        )
+        host_access = self.run_command("ls /host 2>/dev/null && echo 'Host filesystem accessible'")
         if host_access:
             results.append(host_access)
 
-        docker_proc = self.run_command(
-            "ps aux 2>/dev/null | grep -i docker | grep -v grep"
-        )
+        docker_proc = self.run_command("ps aux 2>/dev/null | grep -i docker | grep -v grep")
         if docker_proc:
             results.append(f"Docker processes:\n{docker_proc}")
 
@@ -1758,15 +1600,11 @@ class RootkitDetection:
         if rc_local and rc_local.strip() not in ["#!/bin/sh", "exit 0", ""]:
             results.append(f"/etc/rc.local contents:\n{rc_local}")
 
-        modprobe_conf = self.run_command(
-            "cat /etc/modules-load.d/*.conf 2>/dev/null"
-        )
+        modprobe_conf = self.run_command("cat /etc/modules-load.d/*.conf 2>/dev/null")
         if modprobe_conf:
             results.append(f"Module autoload config:\n{modprobe_conf}")
 
-        udev_rules = self.run_command(
-            "ls /etc/udev/rules.d/ /usr/lib/udev/rules.d/ 2>/dev/null | head -10"
-        )
+        udev_rules = self.run_command("ls /etc/udev/rules.d/ /usr/lib/udev/rules.d/ 2>/dev/null | head -10")
         if udev_rules:
             results.append(f"Udev rules: {udev_rules}")
 
@@ -1777,35 +1615,27 @@ class RootkitDetection:
         """Detect fileless rootkits operating in memory."""
         results = []
 
-        deleted_procs = self.run_command(
-            "ls -la /proc/*/exe 2>/dev/null | grep '(deleted)' | head -20"
-        )
+        deleted_procs = self.run_command("ls -la /proc/*/exe 2>/dev/null | grep '(deleted)' | head -20")
         if deleted_procs:
             results.append(f"Processes with deleted binaries:\n{deleted_procs}")
 
         no_exe = self.run_command(
             "for pid in $(ls /proc/ | grep '^[0-9]' | head -30); do "
             "if [ ! -e /proc/$pid/exe ] && [ -d /proc/$pid ]; then "
-            "echo \"PID $pid: no exe\"; fi; done 2>/dev/null"
+            'echo "PID $pid: no exe"; fi; done 2>/dev/null'
         )
         if no_exe:
             results.append(f"Processes without exe: {no_exe}")
 
-        anon_exec = self.run_command(
-            "grep 'rwx.*anon' /proc/*/maps 2>/dev/null | head -10"
-        )
+        anon_exec = self.run_command("grep 'rwx.*anon' /proc/*/maps 2>/dev/null | head -10")
         if anon_exec:
             results.append(f"Anonymous executable memory:\n{anon_exec}")
 
-        memfd = self.run_command(
-            "ls -la /proc/*/fd/ 2>/dev/null | grep memfd | head -10"
-        )
+        memfd = self.run_command("ls -la /proc/*/fd/ 2>/dev/null | grep memfd | head -10")
         if memfd:
             results.append(f"memfd file descriptors:\n{memfd}")
 
-        jit_check = self.run_command(
-            "grep -r 'rwx.*jit\\|rwx.*anon' /proc/self/maps 2>/dev/null | head -5"
-        )
+        jit_check = self.run_command("grep -r 'rwx.*jit\\|rwx.*anon' /proc/self/maps 2>/dev/null | head -5")
         if jit_check:
             results.append(f"JIT memory regions:\n{jit_check}")
 
@@ -1828,15 +1658,11 @@ class RootkitDetection:
         if iommu:
             results.append(f"IOMMU status:\n{iommu}")
 
-        thunderbolt = self.run_command(
-            "dmesg 2>/dev/null | grep -i thunderbolt | head -5"
-        )
+        thunderbolt = self.run_command("dmesg 2>/dev/null | grep -i thunderbolt | head -5")
         if thunderbolt:
             results.append(f"Thunderbolt status:\n{thunderbolt}")
 
-        microcode = self.run_command(
-            "grep 'microcode' /proc/cpuinfo 2>/dev/null | head -3"
-        )
+        microcode = self.run_command("grep 'microcode' /proc/cpuinfo 2>/dev/null | head -3")
         if microcode:
             results.append(f"CPU microcode:\n{microcode}")
 
@@ -1847,26 +1673,18 @@ class RootkitDetection:
         """Detect hypervisor-based rootkits."""
         results = []
 
-        vm_check = self.run_command(
-            "systemd-detect-virt 2>/dev/null || echo 'not in a VM'"
-        )
+        vm_check = self.run_command("systemd-detect-virt 2>/dev/null || echo 'not in a VM'")
         results.append(f"VM detection: {vm_check}")
 
-        hypervisor = self.run_command(
-            "grep -i hypervisor /proc/cpuinfo 2>/dev/null | head -3"
-        )
+        hypervisor = self.run_command("grep -i hypervisor /proc/cpuinfo 2>/dev/null | head -3")
         if hypervisor:
             results.append(f"Hypervisor info:\n{hypervisor}")
 
-        dmi_check = self.run_command(
-            "dmidecode -s system-product-name 2>/dev/null"
-        )
+        dmi_check = self.run_command("dmidecode -s system-product-name 2>/dev/null")
         if dmi_check:
             results.append(f"System product: {dmi_check}")
 
-        virt_dmesg = self.run_command(
-            "dmesg 2>/dev/null | grep -iE '(vmware|virtualbox|kvm|xen|hyper-v)' | head -5"
-        )
+        virt_dmesg = self.run_command("dmesg 2>/dev/null | grep -iE '(vmware|virtualbox|kvm|xen|hyper-v)' | head -5")
         if virt_dmesg:
             results.append(f"VM indicators in dmesg:\n{virt_dmesg}")
 

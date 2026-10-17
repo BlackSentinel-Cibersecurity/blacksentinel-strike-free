@@ -75,9 +75,7 @@ class StealthManager:
     def set_mode(self, mode: str) -> None:
         """Set stealth level: passive, quiet, moderate, aggressive."""
         if mode not in STEALTH_LEVELS:
-            raise ValueError(
-                f"Invalid mode '{mode}'. Must be one of: {list(STEALTH_LEVELS.keys())}"
-            )
+            raise ValueError(f"Invalid mode '{mode}'. Must be one of: {list(STEALTH_LEVELS.keys())}")
         with self._lock:
             self._mode = mode
 

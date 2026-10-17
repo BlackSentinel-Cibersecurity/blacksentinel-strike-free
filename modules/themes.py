@@ -7,6 +7,7 @@ Professional dark orange/black theme for penetration testing
 
 class BlackSentinelTheme:
     """Professional BlackSentinel Strike theme - Orange/Black/Gray"""
+
     BG_DARK = "#000000"
     BG_MEDIUM = "#0a0a0a"
     BG_LIGHT = "#111111"
@@ -32,6 +33,7 @@ class BlackSentinelTheme:
 
 class DarkTheme:
     """Default dark theme"""
+
     BG_DARK = "#0a0a0f"
     BG_MEDIUM = "#12121a"
     BG_LIGHT = "#1a1a2e"

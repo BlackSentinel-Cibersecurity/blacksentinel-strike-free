@@ -11,6 +11,7 @@ Military-grade encryption:
   - 64-byte derived key (32 AES + 32 HMAC)
   - 16-byte random IV per encryption
 """
+
 import os
 import json
 import struct
@@ -75,9 +76,9 @@ def _aes_decrypt(token: bytes, aes_key: bytes, hmac_key: bytes) -> bytes:
     if len(token) < IV_SIZE + 4 + HMAC_SIZE:
         raise ValueError("Invalid token: too short")
     iv = token[:IV_SIZE]
-    ct_len = struct.unpack(">I", token[IV_SIZE:IV_SIZE + 4])[0]
-    ct = token[IV_SIZE + 4:IV_SIZE + 4 + ct_len]
-    stored_tag = token[IV_SIZE + 4 + ct_len:IV_SIZE + 4 + ct_len + HMAC_SIZE]
+    ct_len = struct.unpack(">I", token[IV_SIZE : IV_SIZE + 4])[0]
+    ct = token[IV_SIZE + 4 : IV_SIZE + 4 + ct_len]
+    stored_tag = token[IV_SIZE + 4 + ct_len : IV_SIZE + 4 + ct_len + HMAC_SIZE]
     # Verify HMAC-SHA512 (constant-time, truncated to 32 bytes)
     computed_tag = _hmac.new(hmac_key, iv + ct, hashlib.sha512).digest()[:HMAC_SIZE]
     if not _constant_time_compare(computed_tag, stored_tag):
@@ -147,13 +148,13 @@ def init_vault(password: str) -> bool:
     aes_key, hmac_key = _derive_keys(password, salt)
     SALT_FILE.write_bytes(salt)
     KEY_FILE.write_bytes(aes_key + hmac_key)
-    if os.name != 'nt':
+    if os.name != "nt":
         KEY_FILE.chmod(0o600)
         SALT_FILE.chmod(0o600)
     # Write test token
     test_ct = _aes_encrypt(b"BS_VAULT_OK", aes_key, hmac_key)
     TEST_FILE.write_bytes(test_ct)
-    if os.name != 'nt':
+    if os.name != "nt":
         TEST_FILE.chmod(0o600)
     return True
 
@@ -254,25 +255,25 @@ def load_config(password: str) -> dict:
 def _get_default_interface() -> str:
     """Detect the first available network interface."""
     try:
-        if os.name == 'nt':
-            result = subprocess.run(['netsh', 'interface', 'show', 'interface'],
-                                    capture_output=True, text=True, timeout=5)
+        if os.name == "nt":
+            result = subprocess.run(
+                ["netsh", "interface", "show", "interface"], capture_output=True, text=True, timeout=5
+            )
             for line in result.stdout.splitlines():
                 parts = line.split()
-                if len(parts) >= 4 and parts[0] in ('Enabled', 'Connected'):
+                if len(parts) >= 4 and parts[0] in ("Enabled", "Connected"):
                     return parts[-1]
         else:
-            result = subprocess.run(['ip', '-o', 'link', 'show'],
-                                    capture_output=True, text=True, timeout=5)
+            result = subprocess.run(["ip", "-o", "link", "show"], capture_output=True, text=True, timeout=5)
             for line in result.stdout.splitlines():
                 parts = line.split()
                 if len(parts) >= 2:
-                    iface = parts[1].rstrip(':')
-                    if iface != 'lo':
+                    iface = parts[1].rstrip(":")
+                    if iface != "lo":
                         return iface
     except Exception:
         pass
-    return 'en0'
+    return "en0"
 
 
 def _default_config() -> dict:
@@ -310,5 +311,6 @@ def destroy_vault(password: str) -> bool:
     if not unlock_vault(password):
         return False
     import shutil
+
     shutil.rmtree(VAULT_DIR, ignore_errors=True)
     return True

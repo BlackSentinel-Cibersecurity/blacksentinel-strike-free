@@ -33,9 +33,7 @@ class ForensicModule:
     def _run_cmd(self, cmd, timeout=30):
         """Execute a command and return stdout, or None on failure"""
         try:
-            result = subprocess.run(
-                cmd, shell=True, capture_output=True, text=True, timeout=timeout
-            )
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
             return result.stdout
         except Exception:
             return None
@@ -177,18 +175,9 @@ class ForensicModule:
 
         commands = {
             "conversations": f"tshark -r {pcap_file} -q -z conv,ip",
-            "http_requests": (
-                f"tshark -r {pcap_file} -Y http.request "
-                f"-T fields -e http.host -e http.request.uri"
-            ),
-            "dns_queries": (
-                f"tshark -r {pcap_file} -Y dns.qry.name "
-                f"-T fields -e dns.qry.name"
-            ),
-            "suspicious": (
-                f"tshark -r {pcap_file} "
-                f"-Y 'tcp.flags.syn==1 && tcp.flags.ack==0'"
-            ),
+            "http_requests": (f"tshark -r {pcap_file} -Y http.request -T fields -e http.host -e http.request.uri"),
+            "dns_queries": (f"tshark -r {pcap_file} -Y dns.qry.name -T fields -e dns.qry.name"),
+            "suspicious": (f"tshark -r {pcap_file} -Y 'tcp.flags.syn==1 && tcp.flags.ack==0'"),
         }
         results = {}
         for key, cmd in commands.items():
@@ -302,11 +291,13 @@ class ForensicModule:
                     fp = os.path.join(root, f)
                     try:
                         st = os.stat(fp)
-                        fs_info["file_list"].append({
-                            "path": fp,
-                            "size": st.st_size,
-                            "mtime": datetime.fromtimestamp(st.st_mtime).isoformat(),
-                        })
+                        fs_info["file_list"].append(
+                            {
+                                "path": fp,
+                                "size": st.st_size,
+                                "mtime": datetime.fromtimestamp(st.st_mtime).isoformat(),
+                            }
+                        )
                     except OSError:
                         pass
                 if len(fs_info["file_list"]) > 500:
@@ -408,9 +399,7 @@ class ForensicModule:
         }
 
         if self._require_tool("steghide"):
-            out = self._run_cmd(
-                f"steghide extract -sf {image_path} -xf {output_dir}/steghide_out -f"
-            )
+            out = self._run_cmd(f"steghide extract -sf {image_path} -xf {output_dir}/steghide_out -f")
             if out:
                 extract_result["tools_used"].append("steghide")
                 if os.path.exists(f"{output_dir}/steghide_out"):
@@ -494,10 +483,7 @@ class ForensicModule:
             "pstree": f"volatility -f {dump_path} --profile=Win7SP1x64 pstree",
             "netscan": f"volatility -f {dump_path} --profile=Win7SP1x64 netscan",
             "filescan": f"volatility -f {dump_path} --profile=Win7SP1x64 filescan",
-            "dumpfiles": (
-                f"volatility -f {dump_path} --profile=Win7SP1x64 "
-                f"dumpfiles -D {tempfile.gettempdir()}"
-            ),
+            "dumpfiles": (f"volatility -f {dump_path} --profile=Win7SP1x64 dumpfiles -D {tempfile.gettempdir()}"),
             "malfind": f"volatility -f {dump_path} --profile=Win7SP1x64 malfind",
             "svcscan": f"volatility -f {dump_path} --profile=Win7SP1x64 svcscan",
             "clipboard": f"volatility -f {dump_path} --profile=Win7SP1x64 clipboard",
@@ -568,9 +554,7 @@ class ForensicModule:
                     timeline["events"].append(line.strip())
 
         if self._require_tool("find"):
-            out = self._run_cmd(
-                f"find {path} -type f -printf '%T+ %p\\n' 2>/dev/null | sort | head -500"
-            )
+            out = self._run_cmd(f"find {path} -type f -printf '%T+ %p\\n' 2>/dev/null | sort | head -500")
             if out:
                 lines = [l for l in out.split("\n") if l]
                 timeline["events"].extend(lines)
@@ -604,9 +588,7 @@ class ForensicModule:
                 reg_data["entries"] = out.split("\n")[:500]
 
         if tool == "hivexsh" and hive_path:
-            out = self._run_cmd(
-                f"hivexsh -f {hive_path} -e 'ls \\'"
-            )
+            out = self._run_cmd(f"hivexsh -f {hive_path} -e 'ls \\'")
             if out:
                 reg_data["entries"] = out.split("\n")[:500]
 
@@ -677,7 +659,7 @@ class ForensicModule:
             body_start = content.find("\n\n")
             if body_start != -1:
                 header_block = content[:body_start]
-                email_data["body_preview"] = content[body_start:body_start + 2000]
+                email_data["body_preview"] = content[body_start : body_start + 2000]
             else:
                 header_block = content[:4000]
                 email_data["body_preview"] = content[:2000]
@@ -685,8 +667,12 @@ class ForensicModule:
             email_data["headers"] = [h.strip() for h in header_block.split("\n") if h.strip()]
 
             suspicious = [
-                "x-mailer:", "received:", "return-path:", "message-id:",
-                "authentication-results:", "dkim-signature:",
+                "x-mailer:",
+                "received:",
+                "return-path:",
+                "message-id:",
+                "authentication-results:",
+                "dkim-signature:",
             ]
             for hdr in email_data["headers"]:
                 low = hdr.lower()
@@ -854,12 +840,8 @@ class ForensicModule:
             entry = {
                 "item_id": item.get("id", "UNKNOWN"),
                 "description": item.get("description", ""),
-                "hash_md5": self._calculate_hash(item.get("path", ""), "md5")
-                if item.get("path")
-                else None,
-                "hash_sha256": self._calculate_hash(item.get("path", ""), "sha256")
-                if item.get("path")
-                else None,
+                "hash_md5": self._calculate_hash(item.get("path", ""), "md5") if item.get("path") else None,
+                "hash_sha256": self._calculate_hash(item.get("path", ""), "sha256") if item.get("path") else None,
                 "collected_by": item.get("collected_by", ""),
                 "collected_at": datetime.now().isoformat(),
                 "location": item.get("location", ""),
@@ -868,9 +850,7 @@ class ForensicModule:
             custody["items"].append(entry)
 
         self.results["chain_of_custody"] = custody
-        self.log(
-            f"Chain of custody recorded ({len(custody['items'])} items)", "success"
-        )
+        self.log(f"Chain of custody recorded ({len(custody['items'])} items)", "success")
         return custody
 
     # ── Helpers ─────────────────────────────────────────────────

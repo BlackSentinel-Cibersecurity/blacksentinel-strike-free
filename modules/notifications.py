@@ -81,6 +81,7 @@ class NotificationManager:
         if key_path.exists():
             return key_path.read_text().strip()
         import secrets
+
         key = secrets.token_hex(32)
         key_path.write_text(key)
         os.chmod(str(key_path), 0o600)
@@ -174,10 +175,7 @@ class NotificationManager:
 
     def remove_email_recipient(self, email):
         with self._lock:
-            to_remove = [
-                rid for rid, r in self._data["recipients"].items()
-                if r["email"] == email
-            ]
+            to_remove = [rid for rid, r in self._data["recipients"].items() if r["email"] == email]
             for rid in to_remove:
                 del self._data["recipients"][rid]
             if to_remove:
@@ -290,8 +288,7 @@ class NotificationManager:
                 server = smtplib.SMTP(cfg["smtp_host"], cfg["smtp_port"], timeout=30)
                 server.starttls(context=context)
             else:
-                server = smtplib.SMTP_SSL(cfg["smtp_host"], cfg["smtp_port"],
-                                         context=context, timeout=30)
+                server = smtplib.SMTP_SSL(cfg["smtp_host"], cfg["smtp_port"], context=context, timeout=30)
 
             if cfg["smtp_username"] and cfg["smtp_password"]:
                 server.login(cfg["smtp_username"], cfg["smtp_password"])
@@ -350,19 +347,23 @@ class NotificationManager:
         elif fmt == "discord":
             payload = json.dumps({"content": full_message}).encode("utf-8")
         elif fmt == "teams":
-            payload = json.dumps({
-                "@type": "MessageCard",
-                "summary": message[:100],
-                "text": full_message,
-            }).encode("utf-8")
+            payload = json.dumps(
+                {
+                    "@type": "MessageCard",
+                    "summary": message[:100],
+                    "text": full_message,
+                }
+            ).encode("utf-8")
         else:
-            payload = json.dumps({
-                "text": full_message,
-                "severity": severity,
-                "message": message,
-                "timestamp": datetime.utcnow().isoformat() + "Z",
-                "source": "BlackSentinel Strike",
-            }).encode("utf-8")
+            payload = json.dumps(
+                {
+                    "text": full_message,
+                    "severity": severity,
+                    "message": message,
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                    "source": "BlackSentinel Strike",
+                }
+            ).encode("utf-8")
 
         try:
             req = Request(
@@ -443,11 +444,7 @@ class NotificationManager:
 
     def notify_critical_alert(self, message):
         subject = "[CRITICAL] BlackSentinel Alert"
-        body = (
-            f"CRITICAL ALERT\n"
-            f"Time: {datetime.utcnow().isoformat()}Z\n\n"
-            f"{message}"
-        )
+        body = f"CRITICAL ALERT\nTime: {datetime.utcnow().isoformat()}Z\n\n{message}"
         all_recipients = list(self._data["recipients"].values())
         if all_recipients:
             self._enqueue(self._send_email_direct, subject, body, all_recipients)
@@ -464,8 +461,7 @@ class NotificationManager:
             f"Unauthorized Target: {target}\n\n"
             f"This action has been logged and may require immediate review."
         )
-        self._enqueue(self._send_email_direct, subject, body,
-                       list(self._data["recipients"].values()))
+        self._enqueue(self._send_email_direct, subject, body, list(self._data["recipients"].values()))
         self._enqueue(self._send_webhook_all, body, "critical")
         self._log_event("scope_violation", "all", subject, True)
 

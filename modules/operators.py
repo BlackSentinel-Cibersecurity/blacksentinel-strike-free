@@ -7,6 +7,7 @@ Production-grade single-user profile with:
   - Thread-safe operations
   - Full audit trail
 """
+
 import os
 import json
 import secrets
@@ -49,13 +50,13 @@ def _generate_token() -> str:
 
 def validate_password_policy(password: str) -> tuple:
     """Validate password against security policy.
-    
+
     Policy:
       - At least 1 uppercase letter
       - At least 1 lowercase letter
       - At least 3 numbers
       - At least 1 special character (!@#$%^&*()_+-=[]{}|;:,.<>?)
-    
+
     Returns (is_valid, list_of_errors)
     """
     errors = []
@@ -169,8 +170,7 @@ class OperatorManager:
         with self._lock:
             if not self._profile:
                 return None
-            return {k: v for k, v in self._profile.items()
-                    if k not in ("password_hash", "salt")}
+            return {k: v for k, v in self._profile.items() if k not in ("password_hash", "salt")}
 
     def update_profile(self, **kwargs) -> dict:
         with self._lock:

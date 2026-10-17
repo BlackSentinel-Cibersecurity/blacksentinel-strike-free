@@ -181,8 +181,16 @@ class SocialEngineeringModule:
         service_lower = target_service.lower().replace(" ", "")
 
         built_in = {
-            "facebook", "google", "linkedin", "office365", "microsoft",
-            "apple", "github", "twitter", "instagram", "dropbox",
+            "facebook",
+            "google",
+            "linkedin",
+            "office365",
+            "microsoft",
+            "apple",
+            "github",
+            "twitter",
+            "instagram",
+            "dropbox",
         }
 
         if service_lower in built_in:
@@ -424,6 +432,7 @@ server.serve_forever()
             message_type = "delivery"
 
         import random
+
         template = random.choice(message_types[message_type])
         code = f"{random.randint(100000, 999999)}"
 
@@ -450,7 +459,11 @@ server.serve_forever()
             "new_employee": {
                 "title": "New Employee / Contractor",
                 "identity": "You are a new hire starting today in the {dept} department.",
-                "props": ["Fake employee badge (expired or temp)", "Laptop bag with branded sticker", "Offer letter printout"],
+                "props": [
+                    "Fake employee badge (expired or temp)",
+                    "Laptop bag with branded sticker",
+                    "Offer letter printout",
+                ],
                 "approach": "Walk in during morning rush, look confused, ask someone to hold the door or help find your desk.",
                 "story": "I'm the new {dept} analyst. HR told me to report to floor 3 but I can't find the elevator.",
                 "contingencies": [
@@ -627,11 +640,7 @@ server.serve_forever()
             "lock_screen": {
                 "title": "Lock Screen Prank",
                 "description": "Locks the workstation (harmless prank payload).",
-                "script": (
-                    "REM Title: Lock Screen\n"
-                    "DELAY 2000\n"
-                    "GUI l\n"
-                ),
+                "script": ("REM Title: Lock Screen\nDELAY 2000\nGUI l\n"),
             },
             "screenshot_exfil": {
                 "title": "Screenshot Exfiltration",
@@ -787,6 +796,7 @@ server.serve_forever()
 
         try:
             import qrcode
+
             img = qrcode.make(url)
             img.save(output_file)
             method = "qrcode_lib"
@@ -941,12 +951,28 @@ server.serve_forever()
             ],
             "what_to_look_for": [
                 {"item": "Documents with PII", "risk": "high", "examples": "HR files, payroll, medical records"},
-                {"item": "Printouts with credentials", "risk": "high", "examples": "Config sheets, sticky notes, default passwords"},
+                {
+                    "item": "Printouts with credentials",
+                    "risk": "high",
+                    "examples": "Config sheets, sticky notes, default passwords",
+                },
                 {"item": "Business cards", "risk": "medium", "examples": "Names, titles, phone numbers for vishing"},
-                {"item": "USB drives / hard drives", "risk": "critical", "examples": "May contain full databases or source code"},
-                {"item": "Internal memos / org charts", "risk": "medium", "examples": "Reveals hierarchy, departments, projects"},
+                {
+                    "item": "USB drives / hard drives",
+                    "risk": "critical",
+                    "examples": "May contain full databases or source code",
+                },
+                {
+                    "item": "Internal memos / org charts",
+                    "risk": "medium",
+                    "examples": "Reveals hierarchy, departments, projects",
+                },
                 {"item": "Shredded documents", "risk": "medium", "examples": "Can sometimes be reconstructed"},
-                {"item": "Old equipment", "risk": "high", "examples": "Laptops, phones, monitors (may have data residue)"},
+                {
+                    "item": "Old equipment",
+                    "risk": "high",
+                    "examples": "Laptops, phones, monitors (may have data residue)",
+                },
                 {"item": "Email printouts", "risk": "high", "examples": "Conversations, attachments, credentials"},
             ],
             "post_dive": [
@@ -1165,9 +1191,7 @@ server.serve_forever()
     def run_command(self, cmd, timeout=30):
         """Execute a shell command and return stdout."""
         try:
-            result = subprocess.run(
-                cmd, shell=True, capture_output=True, text=True, timeout=timeout
-            )
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
             return result.stdout
         except Exception:
             return None
@@ -1208,8 +1232,7 @@ server.serve_forever()
                 "pages_created": 1 if "phishing_page" in self.results else 0,
                 "badges_created": 1 if "badge_clone" in self.results else 0,
                 "payloads_generated": (
-                    (1 if "rubber_ducky" in self.results else 0)
-                    + (1 if "badusb" in self.results else 0)
+                    (1 if "rubber_ducky" in self.results else 0) + (1 if "badusb" in self.results else 0)
                 ),
             },
             "results": self.results,

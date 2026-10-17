@@ -51,9 +51,7 @@ class ReconModule:
     def _run_cmd(self, cmd, timeout=60):
         """Run a shell command safely, return (stdout, stderr, returncode)."""
         try:
-            result = subprocess.run(
-                cmd, shell=True, capture_output=True, text=True, timeout=timeout
-            )
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
             return result.stdout, result.stderr, result.returncode
         except subprocess.TimeoutExpired:
             self.log(f"Command timed out after {timeout}s: {cmd[:80]}", "warning")
@@ -86,11 +84,13 @@ class ReconModule:
         for line in stdout.splitlines():
             match = re.match(r"(\d+)/tcp\s+open\s+(\S+)\s*(.*)", line)
             if match:
-                open_ports.append({
-                    "port": int(match.group(1)),
-                    "service": match.group(2),
-                    "info": match.group(3).strip(),
-                })
+                open_ports.append(
+                    {
+                        "port": int(match.group(1)),
+                        "service": match.group(2),
+                        "info": match.group(3).strip(),
+                    }
+                )
 
         result = {
             "target": target,
@@ -126,12 +126,14 @@ class ReconModule:
                     parts = info.split()
                     product = parts[0] if parts else ""
                     version = " ".join(parts[1:]) if len(parts) > 1 else ""
-                services.append({
-                    "port": int(match.group(1)),
-                    "service": match.group(2),
-                    "product": product,
-                    "version": version,
-                })
+                services.append(
+                    {
+                        "port": int(match.group(1)),
+                        "service": match.group(2),
+                        "product": product,
+                        "version": version,
+                    }
+                )
 
         result = {
             "target": target,
@@ -191,10 +193,12 @@ class ReconModule:
             match = re.match(r"\|_?(\S+):\s*(.*)", line)
             if match:
                 current_script = match.group(1)
-                script_results.append({
-                    "script": current_script,
-                    "output": match.group(2).strip(),
-                })
+                script_results.append(
+                    {
+                        "script": current_script,
+                        "output": match.group(2).strip(),
+                    }
+                )
 
         result = {
             "target": target,
@@ -258,6 +262,7 @@ class ReconModule:
 
         banners = {}
         import socket
+
         for port in [p.strip() for p in ports.split(",")]:
             try:
                 port_int = int(port)
@@ -297,7 +302,13 @@ class ReconModule:
         """Detect WAF/IDS presence using wafw00f and fingerprinting."""
         self.log(f"Checking for WAF/IDS on {target}", "info")
 
-        result = {"target": target, "waf_detected": False, "waf_names": [], "details": "", "timestamp": datetime.now().isoformat()}
+        result = {
+            "target": target,
+            "waf_detected": False,
+            "waf_names": [],
+            "details": "",
+            "timestamp": datetime.now().isoformat(),
+        }
 
         # wafw00f
         if shutil.which("wafw00f"):
@@ -338,7 +349,13 @@ class ReconModule:
         tool = shutil.which("traceroute") or shutil.which("tracert")
         if not tool:
             self.log("Neither traceroute nor tracert found", "error")
-            return {"target": target, "hops": [], "raw": "", "error": "tool not found", "timestamp": datetime.now().isoformat()}
+            return {
+                "target": target,
+                "hops": [],
+                "raw": "",
+                "error": "tool not found",
+                "timestamp": datetime.now().isoformat(),
+            }
 
         # Windows uses tracert, uses -d for no DNS
         is_tracert = "tracert" in tool.lower()
@@ -388,19 +405,23 @@ class ReconModule:
             # Success indicators
             if "XFR size:" in stdout or "SOA" in stdout:
                 records = [l.strip() for l in stdout.splitlines() if l.strip() and not l.startswith(";")]
-                results["transfers"].append({
-                    "ns": ns,
-                    "success": True,
-                    "record_count": len(records),
-                    "records": records,
-                })
+                results["transfers"].append(
+                    {
+                        "ns": ns,
+                        "success": True,
+                        "record_count": len(records),
+                        "records": records,
+                    }
+                )
                 self.log(f"Zone transfer SUCCESS from {ns}", "success")
             else:
-                results["transfers"].append({
-                    "ns": ns,
-                    "success": False,
-                    "error": stderr.strip()[:200] if stderr else "REFUSED or no records",
-                })
+                results["transfers"].append(
+                    {
+                        "ns": ns,
+                        "success": False,
+                        "error": stderr.strip()[:200] if stderr else "REFUSED or no records",
+                    }
+                )
 
         results["any_success"] = any(t["success"] for t in results["transfers"])
         self.results["zone_transfer"] = results
@@ -422,7 +443,12 @@ class ReconModule:
                 words = [line.strip() for line in f if line.strip()]
         except FileNotFoundError:
             self.log(f"Wordlist not found: {wordlist}", "error")
-            return {"domain": domain, "found": [], "error": "wordlist not found", "timestamp": datetime.now().isoformat()}
+            return {
+                "domain": domain,
+                "found": [],
+                "error": "wordlist not found",
+                "timestamp": datetime.now().isoformat(),
+            }
 
         total = len(words)
         _require_tool("dig")
@@ -442,7 +468,7 @@ class ReconModule:
             result = _check(word)
             if result:
                 found.append(result)
-                self.log(f"[{i+1}/{total}] Found: {result['subdomain']}", "success")
+                self.log(f"[{i + 1}/{total}] Found: {result['subdomain']}", "success")
 
         output = {
             "domain": domain,
@@ -464,6 +490,7 @@ class ReconModule:
 
         try:
             import ipaddress
+
             net = ipaddress.ip_network(cidr, strict=False)
             # Limit to /24 max to avoid insane output
             if net.num_addresses > 256:
@@ -516,13 +543,15 @@ class ReconModule:
                     cn = cn.strip().lower()
                     if cn and cn not in seen:
                         seen.add(cn)
-                        certs.append({
-                            "name": cn,
-                            "issuer": entry.get("issuer_name", ""),
-                            "not_before": entry.get("not_before", ""),
-                            "not_after": entry.get("not_after", ""),
-                            "serial": entry.get("serial_number", ""),
-                        })
+                        certs.append(
+                            {
+                                "name": cn,
+                                "issuer": entry.get("issuer_name", ""),
+                                "not_before": entry.get("not_before", ""),
+                                "not_after": entry.get("not_after", ""),
+                                "serial": entry.get("serial_number", ""),
+                            }
+                        )
         except (json.JSONDecodeError, TypeError):
             self.log("Failed to parse CT response", "warning")
 
@@ -561,14 +590,26 @@ class ReconModule:
                     "os": data.get("os", ""),
                     "ports": data.get("ports", []),
                     "services": [
-                        {"port": s.get("port"), "proto": s.get("transport"), "product": s.get("product"), "version": s.get("version")}
+                        {
+                            "port": s.get("port"),
+                            "proto": s.get("transport"),
+                            "product": s.get("product"),
+                            "version": s.get("version"),
+                        }
                         for s in data.get("data", [])
                     ],
-                    "vulns": list(data.get("vulns", {}).keys()) if isinstance(data.get("vulns"), dict) else data.get("vulns", []),
+                    "vulns": list(data.get("vulns", {}).keys())
+                    if isinstance(data.get("vulns"), dict)
+                    else data.get("vulns", []),
                     "raw": data,
                 }
             except json.JSONDecodeError:
-                result = {"target": target, "source": "shodan_api", "error": stdout[:500], "timestamp": datetime.now().isoformat()}
+                result = {
+                    "target": target,
+                    "source": "shodan_api",
+                    "error": stdout[:500],
+                    "timestamp": datetime.now().isoformat(),
+                }
         else:
             # Fallback: use internetdb (free, no key)
             cmd = f'curl -s "https://internetdb.shodan.io/{target}"'
@@ -587,7 +628,12 @@ class ReconModule:
                 }
                 self.log("Note: Using free InternetDB (no API key). Set SHODAN_API_KEY for full results.", "info")
             except json.JSONDecodeError:
-                result = {"target": target, "source": "internetdb", "error": "failed to parse", "timestamp": datetime.now().isoformat()}
+                result = {
+                    "target": target,
+                    "source": "internetdb",
+                    "error": "failed to parse",
+                    "timestamp": datetime.now().isoformat(),
+                }
 
         self.results["shodan"] = result
         self.log(f"Shodan lookup done: {result.get('source', 'unknown')}", "success")
@@ -605,10 +651,7 @@ class ReconModule:
         api_secret = os.environ.get("CENSYS_API_SECRET", "")
 
         if api_id and api_secret:
-            cmd = (
-                f'curl -s -u "{api_id}:{api_secret}" '
-                f'"https://search.censys.io/api/v2/hosts/{target}"'
-            )
+            cmd = f'curl -s -u "{api_id}:{api_secret}" "https://search.censys.io/api/v2/hosts/{target}"'
             stdout, _, rc = self._run_cmd(cmd, timeout=30)
             try:
                 data = json.loads(stdout).get("result", {})
@@ -654,24 +697,34 @@ class ReconModule:
         """DNS Enumeration"""
         self.log(f"Starting DNS enumeration for {domain}", "info")
 
-        results = {
-            "domain": domain,
-            "timestamp": datetime.now().isoformat(),
-            "records": {}
-        }
+        results = {"domain": domain, "timestamp": datetime.now().isoformat(), "records": {}}
 
         for rtype in ("A", "MX", "NS", "TXT", "SOA", "AAAA", "CNAME"):
             try:
                 cmd = f"dig {domain} {rtype} +short"
                 result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
-                results["records"][rtype] = result.stdout.strip().split('\n') if result.stdout else []
+                results["records"][rtype] = result.stdout.strip().split("\n") if result.stdout else []
             except Exception:
                 results["records"][rtype] = []
 
         subdomains = [
-            "www", "mail", "ftp", "admin", "webmail", "smtp",
-            "pop", "ns1", "ns2", "dns", "mx", "gateway",
-            "vpn", "remote", "portal", "intranet", "extranet"
+            "www",
+            "mail",
+            "ftp",
+            "admin",
+            "webmail",
+            "smtp",
+            "pop",
+            "ns1",
+            "ns2",
+            "dns",
+            "mx",
+            "gateway",
+            "vpn",
+            "remote",
+            "portal",
+            "intranet",
+            "extranet",
         ]
 
         results["subdomains"] = []
@@ -680,10 +733,7 @@ class ReconModule:
                 cmd = f"dig {sub}.{domain} A +short"
                 result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
                 if result.stdout.strip():
-                    results["subdomains"].append({
-                        "subdomain": f"{sub}.{domain}",
-                        "ip": result.stdout.strip()
-                    })
+                    results["subdomains"].append({"subdomain": f"{sub}.{domain}", "ip": result.stdout.strip()})
                     self.log(f"Subdomain found: {sub}.{domain}", "success")
             except Exception:
                 pass
@@ -700,11 +750,7 @@ class ReconModule:
             cmd = f"whois {domain}"
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
 
-            whois_data = {
-                "domain": domain,
-                "raw_output": result.stdout,
-                "parsed": self._parse_whois(result.stdout)
-            }
+            whois_data = {"domain": domain, "raw_output": result.stdout, "parsed": self._parse_whois(result.stdout)}
 
             self.results["whois"] = whois_data
             self.log("WHOIS lookup completed", "success")
@@ -717,20 +763,20 @@ class ReconModule:
     def _parse_whois(self, output):
         """Parse WHOIS output"""
         parsed = {}
-        for line in output.split('\n'):
-            if ':' in line:
-                parts = line.split(':', 1)
+        for line in output.split("\n"):
+            if ":" in line:
+                parts = line.split(":", 1)
                 if len(parts) == 2:
                     key = parts[0].strip().lower()
                     value = parts[1].strip()
-                    if 'registrar' in key:
-                        parsed['registrar'] = value
-                    elif 'creation' in key and 'date' in key:
-                        parsed['creation_date'] = value
-                    elif 'expir' in key:
-                        parsed['expiry_date'] = value
-                    elif 'name server' in key or 'nserver' in key:
-                        parsed.setdefault('nameservers', []).append(value)
+                    if "registrar" in key:
+                        parsed["registrar"] = value
+                    elif "creation" in key and "date" in key:
+                        parsed["creation_date"] = value
+                    elif "expir" in key:
+                        parsed["expiry_date"] = value
+                    elif "name server" in key or "nserver" in key:
+                        parsed.setdefault("nameservers", []).append(value)
         return parsed
 
     def email_harvesting(self, domain):
@@ -742,15 +788,15 @@ class ReconModule:
             cmd = f'curl -s "https://www.google.com/search?q=%40{domain}" | grep -oE "[a-zA-Z0-9._%+-]+@{domain}"'
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
             if result.stdout:
-                emails.update(result.stdout.strip().split('\n'))
+                emails.update(result.stdout.strip().split("\n"))
         except Exception:
             pass
 
         try:
             cmd = f"theHarvester -d {domain} -b google -l 100"
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=60)
-            for line in result.stdout.split('\n'):
-                if '@' in line and domain in line:
+            for line in result.stdout.split("\n"):
+                if "@" in line and domain in line:
                     emails.add(line.strip())
         except Exception:
             pass
@@ -768,11 +814,11 @@ class ReconModule:
             cmd = f"curl -sI {url}"
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
             headers = result.stdout.lower()
-            for line in headers.split('\n'):
-                if line.lower().startswith('server:'):
-                    tech_stack["server"] = line.split(':', 1)[1].strip()
-                elif line.lower().startswith('x-powered-by:'):
-                    tech_stack["language"] = line.split(':', 1)[1].strip()
+            for line in headers.split("\n"):
+                if line.lower().startswith("server:"):
+                    tech_stack["server"] = line.split(":", 1)[1].strip()
+                elif line.lower().startswith("x-powered-by:"):
+                    tech_stack["language"] = line.split(":", 1)[1].strip()
         except Exception:
             pass
 
@@ -780,7 +826,7 @@ class ReconModule:
             cmd = f"whatweb {url} --color=never"
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
             output = result.stdout.lower()
-            for cms in ('wordpress', 'drupal', 'joomla'):
+            for cms in ("wordpress", "drupal", "joomla"):
                 if cms in output:
                     tech_stack["cms"] = cms.title()
                     break
@@ -801,9 +847,9 @@ class ReconModule:
         try:
             cmd = f"gobuster dns -d {domain} -w {wordlist} -t 50 --quiet"
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=300)
-            for line in result.stdout.split('\n'):
-                if 'Found:' in line:
-                    subdomain = line.split('Found:')[1].strip()
+            for line in result.stdout.split("\n"):
+                if "Found:" in line:
+                    subdomain = line.split("Found:")[1].strip()
                     found_subdomains.append(subdomain)
                     self.log(f"Subdomain: {subdomain}", "success")
         except Exception as e:

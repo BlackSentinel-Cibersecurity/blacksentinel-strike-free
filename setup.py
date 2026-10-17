@@ -16,11 +16,7 @@ setup(
     long_description_content_type="text/markdown",
     packages=find_packages(exclude=["tests", "tests.*"]),
     python_requires=">=3.10",
-    install_requires=[
-        line.strip()
-        for line in open("requirements.txt")
-        if line.strip() and not line.startswith("#")
-    ],
+    install_requires=[line.strip() for line in open("requirements.txt") if line.strip() and not line.startswith("#")],
     entry_points={
         "console_scripts": [
             "blacksentinel-strike=app:main",

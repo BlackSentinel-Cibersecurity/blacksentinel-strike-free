@@ -4,6 +4,7 @@ Stores all scan results and findings in an encrypted SQLite database.
 Data is encrypted at rest using the vault's AES-256-CBC encryption.
 Thread-safe via threading.Lock. Auto-backs up before major operations.
 """
+
 import os
 import csv
 import json
@@ -255,9 +256,7 @@ class FindingsDatabase:
             rows = self._conn.execute(query, params).fetchall()
         return [dict(r) for r in rows]
 
-    def get_scans(
-        self, limit: int = 50, offset: int = 0
-    ) -> List[Dict[str, Any]]:
+    def get_scans(self, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
         """List scans with pagination."""
         with _LOCK:
             rows = self._conn.execute(
@@ -269,9 +268,7 @@ class FindingsDatabase:
     def get_scan(self, scan_id: str) -> Optional[Dict[str, Any]]:
         """Get a single scan including its findings."""
         with _LOCK:
-            row = self._conn.execute(
-                "SELECT * FROM scans WHERE id = ?", (scan_id,)
-            ).fetchone()
+            row = self._conn.execute("SELECT * FROM scans WHERE id = ?", (scan_id,)).fetchone()
         if not row:
             return None
         scan = dict(row)
@@ -281,25 +278,11 @@ class FindingsDatabase:
     def get_statistics(self) -> Dict[str, Any]:
         """Aggregate statistics across all findings."""
         with _LOCK:
-            sev = dict(
-                self._conn.execute(
-                    "SELECT severity, COUNT(*) FROM findings GROUP BY severity"
-                ).fetchall()
-            )
-            cat = dict(
-                self._conn.execute(
-                    "SELECT category, COUNT(*) FROM findings GROUP BY category"
-                ).fetchall()
-            )
-            cve_count = self._conn.execute(
-                "SELECT COUNT(DISTINCT cve) FROM findings WHERE cve != ''"
-            ).fetchone()[0]
-            scan_count = self._conn.execute(
-                "SELECT COUNT(*) FROM scans"
-            ).fetchone()[0]
-            total = self._conn.execute(
-                "SELECT COUNT(*) FROM findings"
-            ).fetchone()[0]
+            sev = dict(self._conn.execute("SELECT severity, COUNT(*) FROM findings GROUP BY severity").fetchall())
+            cat = dict(self._conn.execute("SELECT category, COUNT(*) FROM findings GROUP BY category").fetchall())
+            cve_count = self._conn.execute("SELECT COUNT(DISTINCT cve) FROM findings WHERE cve != ''").fetchone()[0]
+            scan_count = self._conn.execute("SELECT COUNT(*) FROM scans").fetchone()[0]
+            total = self._conn.execute("SELECT COUNT(*) FROM findings").fetchone()[0]
         return {
             "total_findings": total,
             "by_severity": sev,
@@ -378,9 +361,7 @@ class FindingsDatabase:
         """Delete a scan and cascade-delete its findings."""
         self._backup()
         with _LOCK:
-            cur = self._conn.execute(
-                "DELETE FROM scans WHERE id = ?", (scan_id,)
-            )
+            cur = self._conn.execute("DELETE FROM scans WHERE id = ?", (scan_id,))
             self._log_action("", "delete_scan", "", f"Deleted scan {scan_id}")
             return cur.rowcount > 0
 
@@ -423,9 +404,7 @@ class FindingsDatabase:
     # Operator logging
     # ------------------------------------------------------------------
 
-    def _log_action(
-        self, operator: str, action: str, target: str, details: str
-    ):
+    def _log_action(self, operator: str, action: str, target: str, details: str):
         """Write an audit log entry (called within an existing lock)."""
         self._conn.execute(
             """INSERT INTO operator_logs (operator, action, target, timestamp, details)
@@ -433,9 +412,7 @@ class FindingsDatabase:
             (operator, action, target, datetime.now(tz=None).isoformat(), details),
         )
 
-    def get_operator_logs(
-        self, operator: Optional[str] = None, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+    def get_operator_logs(self, operator: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
         """Retrieve audit log entries."""
         query = "SELECT * FROM operator_logs"
         params: list = []
@@ -493,5 +470,6 @@ class FindingsDatabase:
     def _gen_id(prefix: str = "") -> str:
         ts = int(time.time() * 1000)
         import random
+
         rand = random.randint(1000, 9999)
         return f"{prefix}{ts}{rand}"

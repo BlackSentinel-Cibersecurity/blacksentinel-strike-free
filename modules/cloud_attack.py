@@ -8,11 +8,7 @@ Copyright (c) 2024-2025 BlackSentinel Strike - All Rights Reserved
 
 import subprocess
 import json
-import re
-import os
-import tempfile
 import threading
-from datetime import datetime
 
 
 class CloudAttack:
@@ -58,9 +54,7 @@ class CloudAttack:
                 users = json.loads(output).get("Users", [])
                 result_lines = []
                 for u in users:
-                    result_lines.append(
-                        f"User: {u['UserName']} | Arn: {u['Arn']} | Created: {u['CreateDate']}"
-                    )
+                    result_lines.append(f"User: {u['UserName']} | Arn: {u['Arn']} | Created: {u['CreateDate']}")
                 self.log(f"[AWS] Found {len(users)} IAM users", "success")
                 return "\n".join(result_lines) if result_lines else "No IAM users found"
             return "No output from AWS CLI"
@@ -76,9 +70,7 @@ class CloudAttack:
                 roles = json.loads(output).get("Roles", [])
                 result_lines = []
                 for r in roles:
-                    result_lines.append(
-                        f"Role: {r['RoleName']} | Arn: {r['Arn']} | Path: {r.get('Path', '/')}"
-                    )
+                    result_lines.append(f"Role: {r['RoleName']} | Arn: {r['Arn']} | Path: {r.get('Path', '/')}")
                 self.log(f"[AWS] Found {len(roles)} IAM roles", "success")
                 return "\n".join(result_lines) if result_lines else "No IAM roles found"
             return "No output from AWS CLI"
@@ -112,9 +104,7 @@ class CloudAttack:
                 buckets = json.loads(output).get("Buckets", [])
                 result_lines = []
                 for b in buckets:
-                    result_lines.append(
-                        f"Bucket: {b['Name']} | Created: {b['CreationDate']}"
-                    )
+                    result_lines.append(f"Bucket: {b['Name']} | Created: {b['CreationDate']}")
                 self.log(f"[AWS] Found {len(buckets)} S3 buckets", "success")
                 return "\n".join(result_lines) if result_lines else "No S3 buckets found"
             return "No output"
@@ -125,9 +115,7 @@ class CloudAttack:
         """Enumerate EC2 instances across regions."""
         self.log(f"[AWS] Enumerating EC2 instances on {target}", "info")
         try:
-            output = self.run_command(
-                "aws ec2 describe-instances --output json", timeout=60
-            )
+            output = self.run_command("aws ec2 describe-instances --output json", timeout=60)
             if output:
                 data = json.loads(output)
                 instances = []
@@ -171,9 +159,7 @@ class CloudAttack:
         """Enumerate RDS instances."""
         self.log(f"[AWS] Enumerating RDS instances on {target}", "info")
         try:
-            output = self.run_command(
-                "aws rds describe-db-instances --output json", timeout=60
-            )
+            output = self.run_command("aws rds describe-db-instances --output json", timeout=60)
             if output:
                 instances = json.loads(output).get("DBInstances", [])
                 result_lines = []
@@ -193,9 +179,7 @@ class CloudAttack:
         """Enumerate security groups with open ports."""
         self.log(f"[AWS] Enumerating security groups on {target}", "info")
         try:
-            output = self.run_command(
-                "aws ec2 describe-security-groups --output json", timeout=60
-            )
+            output = self.run_command("aws ec2 describe-security-groups --output json", timeout=60)
             if output:
                 groups = json.loads(output).get("SecurityGroups", [])
                 result_lines = []
@@ -220,9 +204,7 @@ class CloudAttack:
         """Enumerate VPC subnets."""
         self.log(f"[AWS] Enumerating subnets on {target}", "info")
         try:
-            output = self.run_command(
-                "aws ec2 describe-subnets --output json", timeout=60
-            )
+            output = self.run_command("aws ec2 describe-subnets --output json", timeout=60)
             if output:
                 subnets = json.loads(output).get("Subnets", [])
                 result_lines = []
@@ -241,9 +223,7 @@ class CloudAttack:
         """Enumerate route tables."""
         self.log(f"[AWS] Enumerating route tables on {target}", "info")
         try:
-            output = self.run_command(
-                "aws ec2 describe-route-tables --output json", timeout=60
-            )
+            output = self.run_command("aws ec2 describe-route-tables --output json", timeout=60)
             if output:
                 tables = json.loads(output).get("RouteTables", [])
                 result_lines = []
@@ -253,8 +233,7 @@ class CloudAttack:
                         for r in rt.get("Routes", [])
                     ]
                     result_lines.append(
-                        f"RT: {rt['RouteTableId']} | VPC: {rt.get('VpcId', 'N/A')} "
-                        f"| Routes: {'; '.join(routes[:3])}"
+                        f"RT: {rt['RouteTableId']} | VPC: {rt.get('VpcId', 'N/A')} | Routes: {'; '.join(routes[:3])}"
                     )
                 self.log(f"[AWS] Found {len(tables)} route tables", "success")
                 return "\n".join(result_lines) if result_lines else "No route tables found"
@@ -297,9 +276,7 @@ class CloudAttack:
                 policies = json.loads(output).get("AttachedPolicies", [])
                 result_lines = []
                 for p in policies:
-                    result_lines.append(
-                        f"Policy: {p['PolicyName']} | Arn: {p['PolicyArn']}"
-                    )
+                    result_lines.append(f"Policy: {p['PolicyName']} | Arn: {p['PolicyArn']}")
                 self.log(f"[AWS] Found {len(policies)} attached policies", "success")
                 return "\n".join(result_lines) if result_lines else "No attached policies"
             return "No output"
@@ -319,8 +296,7 @@ class CloudAttack:
                 result_lines = []
                 for k in keys:
                     result_lines.append(
-                        f"KeyID: {k['AccessKeyId']} | Status: {k['Status']} "
-                        f"| Created: {k['CreateDate']}"
+                        f"KeyID: {k['AccessKeyId']} | Status: {k['Status']} | Created: {k['CreateDate']}"
                     )
                 self.log(f"[AWS] Found {len(keys)} access keys", "success")
                 return "\n".join(result_lines) if result_lines else "No access keys found"
@@ -332,9 +308,7 @@ class CloudAttack:
         """Enumerate CloudTrail trails."""
         self.log(f"[AWS] Enumerating CloudTrail trails on {target}", "info")
         try:
-            output = self.run_command(
-                "aws cloudtrail describe-trails --output json", timeout=60
-            )
+            output = self.run_command("aws cloudtrail describe-trails --output json", timeout=60)
             if output:
                 trails = json.loads(output).get("trailList", [])
                 result_lines = []
@@ -353,16 +327,13 @@ class CloudAttack:
         """Enumerate Route53 hosted zones."""
         self.log(f"[AWS] Enumerating Route53 zones on {target}", "info")
         try:
-            output = self.run_command(
-                "aws route53 list-hosted-zones --output json", timeout=60
-            )
+            output = self.run_command("aws route53 list-hosted-zones --output json", timeout=60)
             if output:
                 zones = json.loads(output).get("HostedZones", [])
                 result_lines = []
                 for z in zones:
                     result_lines.append(
-                        f"Zone: {z['Name']} | ID: {z['Id']} "
-                        f"| Records: {z.get('ResourceRecordSetCount', 'N/A')}"
+                        f"Zone: {z['Name']} | ID: {z['Id']} | Records: {z.get('ResourceRecordSetCount', 'N/A')}"
                     )
                 self.log(f"[AWS] Found {len(zones)} hosted zones", "success")
                 return "\n".join(result_lines) if result_lines else "No hosted zones found"
@@ -374,9 +345,7 @@ class CloudAttack:
         """Enumerate SQS queues."""
         self.log(f"[AWS] Enumerating SQS queues on {target}", "info")
         try:
-            output = self.run_command(
-                "aws sqs list-queues --output json", timeout=60
-            )
+            output = self.run_command("aws sqs list-queues --output json", timeout=60)
             if output:
                 queues = json.loads(output).get("QueueUrls", [])
                 result_lines = []
@@ -392,9 +361,7 @@ class CloudAttack:
         """Enumerate SNS topics."""
         self.log(f"[AWS] Enumerating SNS topics on {target}", "info")
         try:
-            output = self.run_command(
-                "aws sns list-topics --output json", timeout=60
-            )
+            output = self.run_command("aws sns list-topics --output json", timeout=60)
             if output:
                 topics = json.loads(output).get("Topics", [])
                 result_lines = []
@@ -411,8 +378,7 @@ class CloudAttack:
         self.log(f"[AWS] Running Pacu enumeration module on {target}", "info")
         try:
             output = self.run_command(
-                "pacu --module-name iam__enum_users --session-name blacksentinel "
-                "--exec-id default --module-args {}",
+                "pacu --module-name iam__enum_users --session-name blacksentinel --exec-id default --module-args {}",
                 timeout=120,
             )
             if output:
@@ -427,8 +393,7 @@ class CloudAttack:
         self.log(f"[AWS] Running Pacu privesc module on {target}", "info")
         try:
             output = self.run_command(
-                "pacu --module-name iam__privesc_scan --session-name blacksentinel "
-                "--exec-id default --module-args {}",
+                "pacu --module-name iam__privesc_scan --session-name blacksentinel --exec-id default --module-args {}",
                 timeout=120,
             )
             if output:
@@ -475,9 +440,7 @@ class CloudAttack:
             if sg_output:
                 groups = json.loads(sg_output)
                 for g in groups:
-                    lines.append(
-                        f"[PUBLIC SG] {g['GroupName']} ({g['GroupId']}) - open to 0.0.0.0/0"
-                    )
+                    lines.append(f"[PUBLIC SG] {g['GroupName']} ({g['GroupId']}) - open to 0.0.0.0/0")
             self.log(f"[AWS] Public access check complete: {len(lines)} findings", "success")
             return "\n".join(lines) if lines else "No public resources found"
         except Exception as e:
@@ -491,9 +454,7 @@ class CloudAttack:
         """Enumerate Azure AD users."""
         self.log(f"[Azure] Enumerating users on {target}", "info")
         try:
-            output = self.run_command(
-                "az ad user list --output json", timeout=60
-            )
+            output = self.run_command("az ad user list --output json", timeout=60)
             if output:
                 users = json.loads(output)
                 result_lines = []
@@ -539,9 +500,7 @@ class CloudAttack:
                 result_lines = []
                 for s in subs:
                     result_lines.append(
-                        f"Sub: {s.get('name', 'N/A')} "
-                        f"| ID: {s.get('id', 'N/A')} "
-                        f"| State: {s.get('state', 'N/A')}"
+                        f"Sub: {s.get('name', 'N/A')} | ID: {s.get('id', 'N/A')} | State: {s.get('state', 'N/A')}"
                     )
                 self.log(f"[Azure] Found {len(subs)} subscriptions", "success")
                 return "\n".join(result_lines) if result_lines else "No subscriptions found"
@@ -553,9 +512,7 @@ class CloudAttack:
         """Enumerate Azure VMs across subscriptions."""
         self.log(f"[Azure] Enumerating VMs on {target}", "info")
         try:
-            output = self.run_command(
-                "az vm list --show-details --output json", timeout=60
-            )
+            output = self.run_command("az vm list --show-details --output json", timeout=60)
             if output:
                 vms = json.loads(output)
                 result_lines = []
@@ -576,9 +533,7 @@ class CloudAttack:
         """Enumerate storage accounts."""
         self.log(f"[Azure] Enumerating storage accounts on {target}", "info")
         try:
-            output = self.run_command(
-                "az storage account list --output json", timeout=60
-            )
+            output = self.run_command("az storage account list --output json", timeout=60)
             if output:
                 accounts = json.loads(output)
                 result_lines = []
@@ -599,16 +554,15 @@ class CloudAttack:
         """Enumerate Network Security Groups."""
         self.log(f"[Azure] Enumerating NSGs on {target}", "info")
         try:
-            output = self.run_command(
-                "az network nsg list --output json", timeout=60
-            )
+            output = self.run_command("az network nsg list --output json", timeout=60)
             if output:
                 nsgs = json.loads(output)
                 result_lines = []
                 for nsg in nsgs:
                     rules = nsg.get("securityRules", [])
                     open_rules = [
-                        r["name"] for r in rules
+                        r["name"]
+                        for r in rules
                         if r.get("access") == "Allow"
                         and r.get("direction") == "Inbound"
                         and r.get("sourceAddressPrefix") in ("*", "0.0.0.0/0", "Internet")
@@ -627,9 +581,7 @@ class CloudAttack:
         """Enumerate Key Vaults."""
         self.log(f"[Azure] Enumerating Key Vaults on {target}", "info")
         try:
-            output = self.run_command(
-                "az keyvault list --output json", timeout=60
-            )
+            output = self.run_command("az keyvault list --output json", timeout=60)
             if output:
                 vaults = json.loads(output)
                 result_lines = []
@@ -649,9 +601,7 @@ class CloudAttack:
         """Enumerate App Registrations."""
         self.log(f"[Azure] Enumerating App Registrations on {target}", "info")
         try:
-            output = self.run_command(
-                "az ad app list --output json", timeout=60
-            )
+            output = self.run_command("az ad app list --output json", timeout=60)
             if output:
                 apps = json.loads(output)
                 result_lines = []
@@ -671,9 +621,7 @@ class CloudAttack:
         """Enumerate service principals."""
         self.log(f"[Azure] Enumerating service principals on {target}", "info")
         try:
-            output = self.run_command(
-                "az ad sp list --all --output json", timeout=120
-            )
+            output = self.run_command("az ad sp list --all --output json", timeout=120)
             if output:
                 sps = json.loads(output)
                 result_lines = []
@@ -693,9 +641,7 @@ class CloudAttack:
         """Enumerate resource groups."""
         self.log(f"[Azure] Enumerating resource groups on {target}", "info")
         try:
-            output = self.run_command(
-                "az group list --output json", timeout=60
-            )
+            output = self.run_command("az group list --output json", timeout=60)
             if output:
                 groups = json.loads(output)
                 result_lines = []
@@ -715,9 +661,7 @@ class CloudAttack:
         """Enumerate AKS clusters."""
         self.log(f"[Azure] Enumerating AKS clusters on {target}", "info")
         try:
-            output = self.run_command(
-                "az aks list --output json", timeout=60
-            )
+            output = self.run_command("az aks list --output json", timeout=60)
             if output:
                 clusters = json.loads(output)
                 result_lines = []
@@ -738,9 +682,7 @@ class CloudAttack:
         """Enumerate Azure Functions."""
         self.log(f"[Azure] Enumerating Functions on {target}", "info")
         try:
-            output = self.run_command(
-                "az functionapp list --output json", timeout=60
-            )
+            output = self.run_command("az functionapp list --output json", timeout=60)
             if output:
                 apps = json.loads(output)
                 result_lines = []
@@ -760,9 +702,7 @@ class CloudAttack:
         """Enumerate Cosmos DB accounts."""
         self.log(f"[Azure] Enumerating Cosmos DB on {target}", "info")
         try:
-            output = self.run_command(
-                "az cosmosdb list --output json", timeout=60
-            )
+            output = self.run_command("az cosmosdb list --output json", timeout=60)
             if output:
                 accounts = json.loads(output)
                 result_lines = []
@@ -782,9 +722,7 @@ class CloudAttack:
         """Enumerate managed disks."""
         self.log(f"[Azure] Enumerating managed disks on {target}", "info")
         try:
-            output = self.run_command(
-                "az disk list --output json", timeout=60
-            )
+            output = self.run_command("az disk list --output json", timeout=60)
             if output:
                 disks = json.loads(output)
                 result_lines = []
@@ -805,9 +743,7 @@ class CloudAttack:
         """Enumerate virtual networks."""
         self.log(f"[Azure] Enumerating VNets on {target}", "info")
         try:
-            output = self.run_command(
-                "az network vnet list --output json", timeout=60
-            )
+            output = self.run_command("az network vnet list --output json", timeout=60)
             if output:
                 vnets = json.loads(output)
                 result_lines = []
@@ -828,9 +764,7 @@ class CloudAttack:
         """Enumerate public IP addresses."""
         self.log(f"[Azure] Enumerating public IPs on {target}", "info")
         try:
-            output = self.run_command(
-                "az network public-ip list --output json", timeout=60
-            )
+            output = self.run_command("az network public-ip list --output json", timeout=60)
             if output:
                 ips = json.loads(output)
                 result_lines = []
@@ -850,9 +784,7 @@ class CloudAttack:
         """Enumerate role assignments."""
         self.log(f"[Azure] Enumerating role assignments on {target}", "info")
         try:
-            output = self.run_command(
-                "az role assignment list --all --output json", timeout=60
-            )
+            output = self.run_command("az role assignment list --all --output json", timeout=60)
             if output:
                 assignments = json.loads(output)
                 result_lines = []
@@ -872,9 +804,7 @@ class CloudAttack:
         """Enumerate SQL databases."""
         self.log(f"[Azure] Enumerating SQL databases on {target}", "info")
         try:
-            output = self.run_command(
-                "az sql db list --output json", timeout=60
-            )
+            output = self.run_command("az sql db list --output json", timeout=60)
             if output:
                 dbs = json.loads(output)
                 result_lines = []
@@ -895,9 +825,7 @@ class CloudAttack:
         """Enumerate container registries."""
         self.log(f"[Azure] Enumerating container registries on {target}", "info")
         try:
-            output = self.run_command(
-                "az acr list --output json", timeout=60
-            )
+            output = self.run_command("az acr list --output json", timeout=60)
             if output:
                 registries = json.loads(output)
                 result_lines = []
@@ -921,9 +849,7 @@ class CloudAttack:
         """Enumerate GCP projects."""
         self.log(f"[GCP] Enumerating projects on {target}", "info")
         try:
-            output = self.run_command(
-                "gcloud projects list --format=json", timeout=60
-            )
+            output = self.run_command("gcloud projects list --format=json", timeout=60)
             if output:
                 projects = json.loads(output)
                 result_lines = []
@@ -944,9 +870,7 @@ class CloudAttack:
         """Enumerate GCE instances across zones."""
         self.log(f"[GCP] Enumerating GCE instances on {target}", "info")
         try:
-            output = self.run_command(
-                "gcloud compute instances list --format=json", timeout=60
-            )
+            output = self.run_command("gcloud compute instances list --format=json", timeout=60)
             if output:
                 instances = json.loads(output)
                 result_lines = []
@@ -984,18 +908,14 @@ class CloudAttack:
         """Enumerate IAM bindings for a project."""
         self.log(f"[GCP] Enumerating IAM bindings on {target}", "info")
         try:
-            output = self.run_command(
-                f"gcloud projects get-iam-policy {target} --format=json", timeout=60
-            )
+            output = self.run_command(f"gcloud projects get-iam-policy {target} --format=json", timeout=60)
             if output:
                 policy = json.loads(output)
                 bindings = policy.get("bindings", [])
                 result_lines = []
                 for b in bindings:
                     members = ", ".join(b.get("members", [])[:5])
-                    result_lines.append(
-                        f"Role: {b.get('role', 'N/A')} | Members: {members}"
-                    )
+                    result_lines.append(f"Role: {b.get('role', 'N/A')} | Members: {members}")
                 self.log(f"[GCP] Found {len(bindings)} IAM bindings", "success")
                 return "\n".join(result_lines) if result_lines else "No IAM bindings found"
             return "No output"
@@ -1029,9 +949,7 @@ class CloudAttack:
         """Enumerate firewall rules."""
         self.log(f"[GCP] Enumerating firewall rules on {target}", "info")
         try:
-            output = self.run_command(
-                "gcloud compute firewall-rules list --format=json", timeout=60
-            )
+            output = self.run_command("gcloud compute firewall-rules list --format=json", timeout=60)
             if output:
                 rules = json.loads(output)
                 result_lines = []
@@ -1057,9 +975,7 @@ class CloudAttack:
         """Enumerate VPC networks."""
         self.log(f"[GCP] Enumerating VPC networks on {target}", "info")
         try:
-            output = self.run_command(
-                "gcloud compute networks list --format=json", timeout=60
-            )
+            output = self.run_command("gcloud compute networks list --format=json", timeout=60)
             if output:
                 networks = json.loads(output)
                 result_lines = []
@@ -1079,9 +995,7 @@ class CloudAttack:
         """Enumerate subnets."""
         self.log(f"[GCP] Enumerating subnets on {target}", "info")
         try:
-            output = self.run_command(
-                "gcloud compute networks subnets list --format=json", timeout=60
-            )
+            output = self.run_command("gcloud compute networks subnets list --format=json", timeout=60)
             if output:
                 subnets = json.loads(output)
                 result_lines = []
@@ -1102,9 +1016,7 @@ class CloudAttack:
         """Enumerate Cloud SQL instances."""
         self.log(f"[GCP] Enumerating Cloud SQL on {target}", "info")
         try:
-            output = self.run_command(
-                f"gcloud sql instances list --format=json", timeout=60
-            )
+            output = self.run_command("gcloud sql instances list --format=json", timeout=60)
             if output:
                 instances = json.loads(output)
                 result_lines = []
@@ -1125,9 +1037,7 @@ class CloudAttack:
         """Enumerate GKE clusters."""
         self.log(f"[GCP] Enumerating GKE clusters on {target}", "info")
         try:
-            output = self.run_command(
-                f"gcloud container clusters list --format=json", timeout=60
-            )
+            output = self.run_command("gcloud container clusters list --format=json", timeout=60)
             if output:
                 clusters = json.loads(output)
                 result_lines = []
@@ -1148,9 +1058,7 @@ class CloudAttack:
         """Enumerate Cloud Functions."""
         self.log(f"[GCP] Enumerating Cloud Functions on {target}", "info")
         try:
-            output = self.run_command(
-                "gcloud functions list --format=json", timeout=60
-            )
+            output = self.run_command("gcloud functions list --format=json", timeout=60)
             if output:
                 functions = json.loads(output)
                 result_lines = []
@@ -1171,9 +1079,7 @@ class CloudAttack:
         """Enumerate Pub/Sub topics."""
         self.log(f"[GCP] Enumerating Pub/Sub topics on {target}", "info")
         try:
-            output = self.run_command(
-                "gcloud pubsub topics list --format=json", timeout=60
-            )
+            output = self.run_command("gcloud pubsub topics list --format=json", timeout=60)
             if output:
                 topics = json.loads(output)
                 result_lines = []
@@ -1189,9 +1095,7 @@ class CloudAttack:
         """Enumerate Cloud Run services."""
         self.log(f"[GCP] Enumerating Cloud Run on {target}", "info")
         try:
-            output = self.run_command(
-                "gcloud run services list --format=json --platform=managed", timeout=60
-            )
+            output = self.run_command("gcloud run services list --format=json --platform=managed", timeout=60)
             if output:
                 services = json.loads(output)
                 result_lines = []
@@ -1211,9 +1115,7 @@ class CloudAttack:
         """Enumerate Cloud Build triggers."""
         self.log(f"[GCP] Enumerating Cloud Build on {target}", "info")
         try:
-            output = self.run_command(
-                "gcloud builds triggers list --format=json", timeout=60
-            )
+            output = self.run_command("gcloud builds triggers list --format=json", timeout=60)
             if output:
                 triggers = json.loads(output)
                 result_lines = []
@@ -1233,9 +1135,7 @@ class CloudAttack:
         """Enumerate BigQuery datasets."""
         self.log(f"[GCP] Enumerating BigQuery datasets on {target}", "info")
         try:
-            output = self.run_command(
-                f"bq ls --format=json {target}:", timeout=60
-            )
+            output = self.run_command(f"bq ls --format=json {target}:", timeout=60)
             if output:
                 datasets = json.loads(output)
                 result_lines = []
@@ -1261,9 +1161,7 @@ class CloudAttack:
             buckets = [l.strip().rstrip("/") for l in output.strip().split("\n") if l.startswith("gs://")]
             result_lines = []
             for bucket in buckets:
-                iam = self.run_command(
-                    f"gsutil iam get {bucket}", timeout=30
-                )
+                iam = self.run_command(f"gsutil iam get {bucket}", timeout=30)
                 if iam:
                     result_lines.append(f"Bucket: {bucket}")
                     result_lines.append(iam[:500])
@@ -1299,9 +1197,7 @@ class CloudAttack:
         """Enumerate static IP addresses."""
         self.log(f"[GCP] Enumerating static IPs on {target}", "info")
         try:
-            output = self.run_command(
-                "gcloud compute addresses list --format=json", timeout=60
-            )
+            output = self.run_command("gcloud compute addresses list --format=json", timeout=60)
             if output:
                 addresses = json.loads(output)
                 result_lines = []
@@ -1345,9 +1241,7 @@ class CloudAttack:
         """Enumerate Secret Manager secrets."""
         self.log(f"[GCP] Enumerating secrets on {target}", "info")
         try:
-            output = self.run_command(
-                "gcloud secrets list --format=json", timeout=60
-            )
+            output = self.run_command("gcloud secrets list --format=json", timeout=60)
             if output:
                 secrets = json.loads(output)
                 result_lines = []
